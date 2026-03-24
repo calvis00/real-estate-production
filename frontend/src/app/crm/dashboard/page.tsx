@@ -83,13 +83,14 @@ export default function CRMDashboard() {
   };
 
   const exportLeads = () => {
-    const headers = ['ID', 'Customer', 'Phone', 'Requirement', 'Status', 'Priority', 'CreatedAt', 'Notes'];
+    const headers = ['ID', 'Customer', 'Phone', 'Source', 'Requirement', 'Status', 'Priority', 'CreatedAt', 'Notes'];
     const csvContent = [
       headers.join(','),
       ...filteredLeads.map((l: any) => [
         `"#${l.id}"`,
         `"${l.customerName || ''}"`,
         `"${l.phone || ''}"`,
+        `"${l.source || ''}"`,
         `"${(l.requirementText || '').replace(/"/g, '""')}"`,
         `"${l.status || ''}"`,
         `"${l.priority || ''}"`,
@@ -229,63 +230,92 @@ export default function CRMDashboard() {
           </div>
 
           <div className="overflow-x-auto">
-            <table className="w-full text-left table-fixed border-collapse border border-surface-container">
-              <thead>
-                <tr className="bg-surface/50 text-[10px] font-black uppercase tracking-wider text-outline">
-                  {activeTab === 'leads' ? (
-                    <>
-                      <th className="px-1 py-4 w-[3%] text-center border border-surface-container">ID</th>
-                      <th className="px-1 py-4 w-[6%] text-center border border-surface-container">Date</th>
-                      <th className="px-1 py-4 w-[8%] text-center border border-surface-container">Name</th>
-                      <th className="px-1 py-4 w-[8%] text-center border border-surface-container">Phone</th>
-                      <th className="px-2 py-4 w-[16%] text-center border border-surface-container">Requirement</th>
-                      <th className="px-1 py-4 w-[8%] text-center border border-surface-container">Budget</th>
-                      <th className="px-1 py-4 w-[9%] text-[#D4AF37] font-black text-center border border-surface-container">Priority</th>
-                      <th className="px-1 py-4 w-[9%] text-center border border-surface-container">Follow-up</th>
-                      <th className="px-1 py-4 w-[12%] text-center border border-surface-container">Status</th>
-                      <th className="px-2 py-4 w-[19%] text-center border border-surface-container">Notes</th>
-                      <th className="px-1 py-4 w-[2%] text-center border border-surface-container"></th>
-                    </>
-                  ) : (
-                    <>
-                      <th className="px-8 py-5 w-[40%] text-center border border-surface-container">Property</th>
-                      <th className="px-8 py-5 w-[30%] text-center border border-surface-container">Location</th>
-                      <th className="px-8 py-5 w-[20%] text-center border border-surface-container">Price</th>
-                      <th className="px-8 py-5 text-center w-[10%] border border-surface-container">Action</th>
-                    </>
-                  )}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-surface-container">
-                {activeTab === 'leads' ? (
-                  filteredLeads.map((l: any) => {
+            {activeTab === 'leads' ? (
+              /*
+               * LEADS TABLE
+               * Total = 100%
+               * ID:3  Date:5  Name:9  Phone:8  Source:7  Requirement:15  Budget:7  Priority:6  Follow-up:8  Status:8  Notes:17  Del:2
+               * All columns use text-center; Requirement & Notes left-align for readability.
+               */
+              <table className="w-full text-left table-fixed border-collapse border border-surface-container">
+                <thead>
+                  <tr className="bg-surface/50 text-xs font-black uppercase tracking-wider text-outline">
+                    <th className="px-2 py-4 w-[3%]  text-center border border-surface-container">ID</th>
+                    <th className="px-2 py-4 w-[5%]  text-center border border-surface-container">Date</th>
+                    <th className="px-2 py-4 w-[9%]  text-center border border-surface-container">Name</th>
+                    <th className="px-2 py-4 w-[8%]  text-center border border-surface-container">Phone</th>
+                    <th className="px-2 py-4 w-[7%]  text-center border border-surface-container">Source</th>
+                    <th className="px-2 py-4 w-[13%] text-center border border-surface-container">Requirement</th>
+                    <th className="px-2 py-4 w-[13%] text-center border border-surface-container">Budget</th>
+                    <th className="px-2 py-4 w-[6%]  text-[#D4AF37] font-black text-center border border-surface-container">Priority</th>
+                    <th className="px-2 py-4 w-[8%]  text-center border border-surface-container">Follow-up</th>
+                    <th className="px-2 py-4 w-[8%]  text-center border border-surface-container">Status</th>
+                    <th className="px-2 py-4 w-[17%] text-center border border-surface-container">Notes</th>
+                    <th className="px-2 py-4 w-[2%]  text-center border border-surface-container"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-surface-container">
+                  {filteredLeads.map((l: any) => {
                     const minDetails = getBudgetDisplay(l.budgetMin);
                     const maxDetails = getBudgetDisplay(l.budgetMax);
                     return (
                       <tr key={l.id} className="hover:bg-surface/50 transition-colors group align-top">
-                        <td className="px-1 py-3 text-[10px] font-black text-primary/40 font-mono text-center border border-surface-container">
+
+                        {/* ID */}
+                        <td className="px-2 py-3 text-xs font-black text-primary/40 font-mono text-center border border-surface-container">
                           {l.id}
                         </td>
-                        <td className="px-1 py-3 text-center border border-surface-container">
-                          <span className="text-[10px] font-bold text-outline">
+
+                        {/* Date */}
+                        <td className="px-2 py-3 text-center border border-surface-container">
+                          <span className="text-xs font-bold text-outline">
                             {new Date(l.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: '2-digit' })}
                           </span>
                         </td>
-                        <td className="px-1 py-3 border border-surface-container">
-                          <span className="font-bold text-[11px] text-primary block truncate">{l.customerName}</span>
+
+                        {/* Name */}
+                        <td className="px-2 py-3 border border-surface-container">
+                          <span className="font-bold text-xs text-primary block truncate">{l.customerName}</span>
                         </td>
-                        <td className="px-1 py-3 font-bold text-[11px] text-primary border border-surface-container text-center">
+
+                        {/* Phone */}
+                        <td className="px-2 py-3 font-bold text-xs text-primary border border-surface-container text-center">
                           {l.phone}
                         </td>
-                        <td className="px-2 py-3 border border-surface-container">
-                          <p className="text-[10px] text-outline font-medium leading-relaxed break-words line-clamp-2">{l.requirementText || `Interested in ${l.propertyType || 'Any'}`}</p>
+
+                        {/* Source — NEW COLUMN */}
+                        <td className="px-2 py-3 border border-surface-container text-center">
+                          <select
+                            value={l.source || ''}
+                            onChange={(e) => updateLeadField(l.id, 'source', e.target.value)}
+                            className="text-xs font-bold w-full px-1 py-1 rounded-lg uppercase tracking-tight bg-surface-container/20 border-none focus:ring-0 cursor-pointer text-outline"
+                          >
+                            <option value="">—</option>
+                            <option value="WALK_IN">Walk-in</option>
+                            <option value="PHONE">Phone</option>
+                            <option value="REFERRAL">Referral</option>
+                            <option value="WEBSITE">Website</option>
+                            <option value="SOCIAL">Social</option>
+                            <option value="PORTAL">Portal</option>
+                            <option value="OTHER">Other</option>
+                          </select>
                         </td>
-                        <td className="px-1 py-3 border border-surface-container">
-                          <div className="flex flex-col gap-1 items-center">
+
+                        {/* Requirement */}
+                        <td className="px-2 py-3 border border-surface-container">
+                          <p className="text-xs text-outline font-medium leading-relaxed break-words line-clamp-2">
+                            {l.requirementText || `Interested in ${l.propertyType || 'Any'}`}
+                          </p>
+                        </td>
+
+                        {/* Budget */}
+                        <td className="px-2 py-3 border border-surface-container">
+                          <div className="flex items-center gap-1 justify-center flex-nowrap whitespace-nowrap">
+                            {/* Min */}
                             <div className="flex items-center gap-0.5 bg-surface-container/10 rounded px-1 py-0.5 border border-surface-container/20">
                               <input
                                 type="number" step="0.01"
-                                className="w-8 bg-transparent text-[8px] font-black border-none p-0 text-right focus:ring-0 appearance-none text-primary"
+                                className="w-8 bg-transparent text-xs font-black border-none p-0 text-right focus:ring-0 appearance-none text-primary"
                                 value={minDetails.num}
                                 onChange={(e) => {
                                   const mult = minDetails.unit === 'Cr' ? 10000000 : 100000;
@@ -298,15 +328,17 @@ export default function CRMDashboard() {
                                   const mult = e.target.value === 'Cr' ? 10000000 : 100000;
                                   updateLeadField(l.id, 'budgetMin', minDetails.num * mult);
                                 }}
-                                className="bg-transparent border-none text-[8px] font-black p-0 focus:ring-0 text-primary/30 cursor-pointer"
+                                className="bg-transparent border-none text-xs font-black p-0 focus:ring-0 text-primary/40 cursor-pointer"
                               >
                                 <option value="L">L</option><option value="Cr">Cr</option>
                               </select>
                             </div>
+                            <span className="text-xs font-black text-outline/50">–</span>
+                            {/* Max */}
                             <div className="flex items-center gap-0.5 bg-surface-container/10 rounded px-1 py-0.5 border border-surface-container/20">
                               <input
                                 type="number" step="0.01"
-                                className="w-8 bg-transparent text-[8px] font-black border-none p-0 text-right focus:ring-0 appearance-none text-primary"
+                                className="w-8 bg-transparent text-xs font-black border-none p-0 text-right focus:ring-0 appearance-none text-primary"
                                 value={maxDetails.num}
                                 onChange={(e) => {
                                   const mult = maxDetails.unit === 'Cr' ? 10000000 : 100000;
@@ -319,40 +351,46 @@ export default function CRMDashboard() {
                                   const mult = e.target.value === 'Cr' ? 10000000 : 100000;
                                   updateLeadField(l.id, 'budgetMax', maxDetails.num * mult);
                                 }}
-                                className="bg-transparent border-none text-[8px] font-black p-0 focus:ring-0 text-primary/30 cursor-pointer"
+                                className="bg-transparent border-none text-xs font-black p-0 focus:ring-0 text-primary/40 cursor-pointer"
                               >
                                 <option value="L">L</option><option value="Cr">Cr</option>
                               </select>
                             </div>
                           </div>
                         </td>
-                        <td className="px-1 py-3 text-center border border-surface-container">
+
+                        {/* Priority */}
+                        <td className="px-2 py-3 text-center border border-surface-container">
                           <select
                             value={l.priority}
                             onChange={(e) => updateLeadField(l.id, 'priority', e.target.value)}
-                            className={`text-[8px] font-black px-1 py-0.5 rounded-md uppercase border-none focus:ring-0 cursor-pointer ${l.priority === 'HIGH' ? 'bg-red-50 text-red-500' : l.priority === 'MEDIUM' ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-500'}`}
+                            className={`text-xs font-black px-1 py-1 rounded-md uppercase border-none focus:ring-0 cursor-pointer w-full ${l.priority === 'HIGH' ? 'bg-red-50 text-red-500' : l.priority === 'MEDIUM' ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-500'}`}
                           >
                             <option value="LOW">Low</option>
                             <option value="MEDIUM">Med</option>
                             <option value="HIGH">High</option>
                           </select>
                         </td>
-                        <td className="px-1 py-3 text-center border border-surface-container">
+
+                        {/* Follow-up */}
+                        <td className="px-2 py-3 text-center border border-surface-container">
                           <input
                             type="date"
                             value={l.nextFollowUpDate ? l.nextFollowUpDate.split('T')[0] : ''}
                             onChange={(e) => updateLeadField(l.id, 'nextFollowUpDate', e.target.value)}
-                            className={`bg-transparent border rounded-lg px-1 py-0.5 text-[9px] font-bold focus:ring-0 w-[85px] mx-auto block transition-all ${l.status === 'NEED_TO_RECALL'
+                            className={`bg-transparent border rounded-lg px-1 py-0.5 text-xs font-bold focus:ring-0 w-full transition-all ${l.status === 'NEED_TO_RECALL'
                               ? 'border-primary text-primary bg-primary/5'
                               : 'border-transparent text-outline opacity-40 hover:opacity-100 font-medium'
                               }`}
                           />
                         </td>
-                        <td className="px-1 py-3 text-center border border-surface-container">
+
+                        {/* Status */}
+                        <td className="px-2 py-3 text-center border border-surface-container">
                           <select
                             value={l.status}
                             onChange={(e) => updateLeadField(l.id, 'status', e.target.value)}
-                            className={`text-[8px] font-black w-full px-1 py-1 rounded-lg uppercase tracking-tighter bg-surface-container/20 border-none focus:ring-0 cursor-pointer ${l.status === 'NEW' ? 'text-primary' :
+                            className={`text-xs font-black w-full px-1 py-1 rounded-lg uppercase tracking-tighter bg-surface-container/20 border-none focus:ring-0 cursor-pointer ${l.status === 'NEW' ? 'text-primary' :
                               l.status === 'CLOSED' ? 'text-green-600' :
                                 l.status === 'IN_PROGRESS' ? 'text-blue-500' :
                                   l.status === 'NEED_TO_RECALL' ? 'text-primary ring-1 ring-primary/20' :
@@ -360,30 +398,48 @@ export default function CRMDashboard() {
                               }`}
                           >
                             <option value="NEW">New</option>
-                            <option value="CONTACTED">Cont</option>
-                            <option value="IN_PROGRESS">Prog</option>
-                            <option value="NEED_TO_RECALL">Call</option>
+                            <option value="CONTACTED">Contacted</option>
+                            <option value="IN_PROGRESS">In Progress</option>
+                            <option value="NEED_TO_RECALL">Call Again</option>
                             <option value="CLOSED">Closed</option>
                           </select>
                         </td>
+
+                        {/* Notes */}
                         <td className="px-2 py-3 border border-surface-container">
                           <textarea
                             value={l.notes || ''}
                             onChange={(e) => updateLeadField(l.id, 'notes', e.target.value)}
                             placeholder="Notes..."
-                            className="w-full bg-surface-container/5 hover:bg-surface-container/10 border border-transparent focus:border-primary/20 rounded-xl p-1.5 text-[11px] text-outline resize-none focus:outline-none transition-all h-14 break-words"
+                            className="w-full bg-surface-container/5 hover:bg-surface-container/10 border border-transparent focus:border-primary/20 rounded-xl p-1.5 text-xs text-outline resize-none focus:outline-none transition-all h-14 break-words"
                           />
                         </td>
-                        <td className="px-1 py-3 text-center border border-surface-container">
+
+                        {/* Delete */}
+                        <td className="px-2 py-3 text-center border border-surface-container">
                           <button onClick={() => deleteLead(l.id)} className="text-outline hover:text-red-500 transition-colors p-0.5 hover:bg-red-50 rounded-lg">
                             <span className="material-symbols-outlined text-sm">delete</span>
                           </button>
                         </td>
+
                       </tr>
                     );
-                  })
-                ) : (
-                  properties.map((p: any) => (
+                  })}
+                </tbody>
+              </table>
+            ) : (
+              /* PROPERTIES TABLE — unchanged */
+              <table className="w-full text-left table-fixed border-collapse border border-surface-container">
+                <thead>
+                  <tr className="bg-surface/50 text-[10px] font-black uppercase tracking-wider text-outline">
+                    <th className="px-8 py-5 w-[40%] text-center border border-surface-container">Property</th>
+                    <th className="px-8 py-5 w-[30%] text-center border border-surface-container">Location</th>
+                    <th className="px-8 py-5 w-[20%] text-center border border-surface-container">Price</th>
+                    <th className="px-8 py-5 text-center w-[10%] border border-surface-container">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-surface-container">
+                  {properties.map((p: any) => (
                     <tr key={p.id} className="hover:bg-surface transition-colors">
                       <td className="px-8 py-5 border border-surface-container">
                         <div className="flex items-center gap-4">
@@ -405,10 +461,10 @@ export default function CRMDashboard() {
                         </button>
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
+                  ))}
+                </tbody>
+              </table>
+            )}
           </div>
         </div>
       </main>
