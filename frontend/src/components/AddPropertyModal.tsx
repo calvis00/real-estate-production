@@ -7,13 +7,15 @@ interface AddPropertyModalProps {
     isOpen: boolean;
     onClose: () => void;
     onRefresh: () => void;
+    initialData?: any; // For Edit Mode
 }
 
-export default function AddPropertyModal({ isOpen, onClose, onRefresh }: AddPropertyModalProps) {
+export default function AddPropertyModal({ isOpen, onClose, onRefresh, initialData }: AddPropertyModalProps) {
     const [step, setStep] = useState<'template' | 'editor'>('template');
     const [mode, setMode] = useState<'edit' | 'preview'>('edit');
     const [formData, setFormData] = useState<any>({});
     const [files, setFiles] = useState<{ file: File; preview: string; type: string }[]>([]);
+    const [existingMedia, setExistingMedia] = useState<{ url: string; type: 'image' | 'video' }[]>([]);
     const [isPublishing, setIsPublishing] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [showToolbar, setShowToolbar] = useState(false);
@@ -24,13 +26,33 @@ export default function AddPropertyModal({ isOpen, onClose, onRefresh }: AddProp
 
     useEffect(() => {
         if (isOpen) {
-            setStep('template');
+            if (initialData) {
+                setFormData(initialData);
+                setExistingMedia([
+                    ...(initialData.images || []).map((url: string) => ({ url, type: 'image' })),
+                    ...(initialData.videos || []).map((url: string) => ({ url, type: 'video' }))
+                ]);
+                setStep('editor');
+            } else {
+                setStep('template');
+                setFormData({
+                    type: 'RESIDENTIAL_BUY',
+                    category: 'APARTMENT',
+                    city: 'Chennai',
+                    locality: 'OMR',
+                    bedrooms: 0,
+                    bathrooms: 0,
+                    areaSqft: 1000,
+                    price: 0,
+                    tags: []
+                });
+                setExistingMedia([]);
+            }
             setMode('edit');
             setFiles([]);
-            setFormData({});
             setError(null);
         }
-    }, [isOpen]);
+    }, [isOpen, initialData]);
 
     // Handle Text Selection for Bold/Italic Toolbar
     const handleMouseUp = () => {
@@ -83,31 +105,28 @@ export default function AddPropertyModal({ isOpen, onClose, onRefresh }: AddProp
         setIsPublishing(true);
         setError(null);
 
-        // Capture content from contentEditable
         const description = editorRef.current?.innerHTML || '';
-
         const data = new FormData();
         
-        // Append all text fields
         Object.keys(formData).forEach(key => {
-            if (key === 'description') return; // Handled separately
-            if (key === 'tags') {
+            if (['description', 'images', 'videos', 'id', 'status', 'createdAt', 'updatedAt'].includes(key)) return;
+            if (key === 'tags' && Array.isArray(formData[key])) {
                 data.append(key, formData[key].join(','));
-            } else {
+            } else if (formData[key] !== undefined && formData[key] !== null) {
                 data.append(key, formData[key]);
             }
         });
 
         data.append('description', description);
-        data.append('city', formData.city || 'Chennai');
-        data.append('locality', formData.locality || 'OMR');
-        data.append('areaSqft', formData.areaSqft || 1000);
-
         files.forEach(f => data.append('assets', f.file));
 
         try {
-            const res = await fetch('http://localhost:8081/api/properties', {
-                method: 'POST',
+            const url = initialData 
+                ? `http://localhost:8081/api/properties/${initialData.id}`
+                : 'http://localhost:8081/api/properties';
+            
+            const res = await fetch(url, {
+                method: initialData ? 'PUT' : 'POST',
                 body: data,
                 credentials: 'include'
             });
@@ -117,7 +136,12 @@ export default function AddPropertyModal({ isOpen, onClose, onRefresh }: AddProp
                 onClose();
             } else {
                 const errData = await res.json();
-                setError(errData.message || 'Failed to publish property');
+                if (errData.errors && Array.isArray(errData.errors)) {
+                    const fields = errData.errors.map((e: any) => e.path.join('.')).join(', ');
+                    setError(`Validation failed for: ${fields}`);
+                } else {
+                    setError(errData.message || 'Action failed');
+                }
             }
         } catch (err) {
             setError('Something went wrong. Please try again.');
@@ -201,7 +225,7 @@ export default function AddPropertyModal({ isOpen, onClose, onRefresh }: AddProp
                                 ) : (
                                     <span className="material-symbols-outlined text-sm">rocket_launch</span>
                                 )}
-                                {isPublishing ? 'Publishing...' : 'Publish'}
+                                {isPublishing ? 'Pending...' : initialData ? 'Update' : 'Publish'}
                             </button>
                         </div>
                     )}
@@ -238,7 +262,20 @@ export default function AddPropertyModal({ isOpen, onClose, onRefresh }: AddProp
                             
                             {/* Empty Canvas Option */}
                             <button 
-                                onClick={() => { setFormData({}); setStep('editor'); }}
+                                onClick={() => { 
+                                    setFormData({
+                                        type: 'RESIDENTIAL_BUY',
+                                        category: 'APARTMENT',
+                                        city: 'Chennai',
+                                        locality: 'OMR',
+                                        bedrooms: 0,
+                                        bathrooms: 0,
+                                        areaSqft: 1000,
+                                        price: 0,
+                                        tags: []
+                                    }); 
+                                    setStep('editor'); 
+                                }}
                                 className="group bg-background p-10 rounded-[3rem] border border-dashed border-surface-container hover:border-outline transition-all text-left flex flex-col justify-center items-center gap-4 hover:bg-surface/50 shadow-sm"
                             >
                                 <div className="mb-4 w-16 h-16 rounded-[1.5rem] bg-surface-container/20 flex items-center justify-center text-outline group-hover:text-primary group-hover:bg-primary/5 transition-all">
@@ -280,8 +317,7 @@ export default function AddPropertyModal({ isOpen, onClose, onRefresh }: AddProp
                                         ref={editorRef}
                                         contentEditable
                                         onMouseUp={handleMouseUp}
-                                        className="w-full text-xl font-sans border-none focus:ring-0 placeholder:text-outline/20 bg-transparent text-primary/80 min-h-[400px] resize-none p-0 outline-none leading-relaxed prose prose-xl max-w-none prose-headings:font-black prose-p:my-4"
-                                        placeholder="Tell the story of this property..."
+                                        className="w-full text-xl font-sans border-none focus:ring-0 bg-transparent text-primary/80 min-h-[400px] resize-none p-0 outline-none leading-relaxed prose prose-xl max-w-none prose-headings:font-black prose-p:my-4"
                                         dangerouslySetInnerHTML={{ __html: formData.description || '' }}
                                     />
                                 </>
@@ -301,7 +337,12 @@ export default function AddPropertyModal({ isOpen, onClose, onRefresh }: AddProp
                                                 {f.type.startsWith('video/') ? (
                                                     <video src={f.preview} controls className="w-full h-auto aspect-video object-cover" />
                                                 ) : (
-                                                    <img src={f.preview} className="w-full h-auto object-cover aspect-[4/3]" alt="" />
+                                                    <img 
+                                                        src={f.preview} 
+                                                        className="w-full h-auto object-cover aspect-[4/3]" 
+                                                        alt="" 
+                                                        onError={(e: any) => { e.target.src = "/placeholder.png"; }}
+                                                    />
                                                 )}
                                             </div>
                                         ))}
@@ -317,13 +358,41 @@ export default function AddPropertyModal({ isOpen, onClose, onRefresh }: AddProp
                                         <div className="h-px flex-1 bg-outline/20" />
                                     </h4>
 
+                                    {/* Existing Media section */}
+                                    {existingMedia.length > 0 && (
+                                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 pb-8">
+                                            {existingMedia.map((m, i) => (
+                                                <div key={i} className="relative group aspect-square rounded-2xl overflow-hidden border border-surface-container opacity-60 hover:opacity-100 transition-all">
+                                                    {m.type === 'video' ? (
+                                                        <video src={m.url} className="w-full h-full object-cover" />
+                                                    ) : (
+                                                        <img 
+                                                            src={m.url} 
+                                                            className="w-full h-full object-cover" 
+                                                            alt="" 
+                                                            onError={(e: any) => { e.target.src = "/placeholder.png"; }}
+                                                        />
+                                                    )}
+                                                    <div className="absolute inset-0 bg-black/20 flex items-center justify-center pointer-events-none">
+                                                        <span className="text-[8px] font-bold text-white uppercase tracking-widest bg-black/40 px-2 py-1 rounded-full">Stored</span>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         {files.map((f, i) => (
                                             <div key={i} className="relative group bg-surface rounded-[2rem] overflow-hidden border border-surface-container animate-in zoom-in-95">
                                                 {f.type.startsWith('video/') ? (
                                                     <video src={f.preview} className="w-full h-auto aspect-video object-cover" />
                                                 ) : (
-                                                    <img src={f.preview} className="w-full h-auto object-cover aspect-[4/3]" alt="" />
+                                                    <img 
+                                                        src={f.preview} 
+                                                        className="w-full h-auto object-cover aspect-[4/3]" 
+                                                        alt="" 
+                                                        onError={(e: any) => { e.target.src = "/placeholder.png"; }}
+                                                    />
                                                 )}
                                                 <button 
                                                     onClick={() => removeFile(i)}
@@ -365,17 +434,35 @@ export default function AddPropertyModal({ isOpen, onClose, onRefresh }: AddProp
                                 <h3 className="text-xs font-black uppercase tracking-widest text-primary border-b border-surface-container pb-4">Specifications</h3>
                                 
                                 <div className="space-y-6">
-                                    <div className="space-y-2">
-                                        <label className="text-[9px] font-black uppercase tracking-widest text-outline">Total Price (INR)</label>
-                                        <div className="relative">
-                                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-primary font-black text-lg">₹</span>
-                                            <input 
-                                                type="number"
-                                                value={formData.price || ''}
-                                                onChange={(e) => setFormData({...formData, price: e.target.value})}
-                                                placeholder="0.00"
-                                                className="w-full bg-background border border-surface-container rounded-2xl py-4 pl-10 pr-4 text-base font-black focus:border-primary transition-all shadow-inner"
-                                            />
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="space-y-2">
+                                            <label className="text-[9px] font-black uppercase tracking-widest text-outline">Total Price (INR)</label>
+                                            <div className="relative">
+                                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-primary font-black text-xs">₹</span>
+                                                <input 
+                                                    type="number"
+                                                    value={formData.price || ''}
+                                                    onChange={(e) => {
+                                                        const val = Number(e.target.value);
+                                                        setFormData({...formData, price: val});
+                                                    }}
+                                                    placeholder="0"
+                                                    className="w-full bg-background border border-surface-container rounded-2xl py-4 pl-8 pr-4 text-sm font-black focus:border-primary transition-all shadow-inner"
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="space-y-2">
+                                            <label className="text-[9px] font-black uppercase tracking-widest text-outline">Rate / Sqft</label>
+                                            <div className="relative">
+                                                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-primary/40 font-black text-xs">₹</span>
+                                                <input 
+                                                    type="text"
+                                                    readOnly
+                                                    value={formData.price && formData.areaSqft ? Math.round(Number(formData.price) / Number(formData.areaSqft)).toLocaleString() : '—'}
+                                                    placeholder="0"
+                                                    className="w-full bg-surface-container/20 border border-surface-container rounded-2xl py-4 pl-8 pr-4 text-sm font-black text-outline/60 cursor-not-allowed transition-all shadow-inner"
+                                                />
+                                            </div>
                                         </div>
                                     </div>
 
@@ -406,7 +493,10 @@ export default function AddPropertyModal({ isOpen, onClose, onRefresh }: AddProp
                                             type="number"
                                             placeholder="1,200"
                                             value={formData.areaSqft || ''}
-                                            onChange={(e) => setFormData({...formData, areaSqft: e.target.value})}
+                                            onChange={(e) => {
+                                                const area = Number(e.target.value);
+                                                setFormData({...formData, areaSqft: area});
+                                            }}
                                             className="w-full bg-background border border-surface-container rounded-2xl py-4 px-4 text-sm font-black focus:border-primary transition-all shadow-inner"
                                         />
                                     </div>
@@ -430,6 +520,20 @@ export default function AddPropertyModal({ isOpen, onClose, onRefresh }: AddProp
                                     </div>
 
                                     <div className="space-y-2">
+                                        <label className="text-[9px] font-black uppercase tracking-widest text-outline">Market Type</label>
+                                        <select 
+                                            value={formData.type || 'RESIDENTIAL_BUY'}
+                                            onChange={(e) => setFormData({...formData, type: e.target.value})}
+                                            className="w-full bg-background border border-surface-container rounded-2xl py-4 px-4 text-xs font-black focus:border-primary transition-all shadow-inner appearance-none uppercase"
+                                        >
+                                            <option value="RESIDENTIAL_BUY">For Sale</option>
+                                            <option value="RESIDENTIAL_RENT">To Rent</option>
+                                            <option value="PLOT">Plot/Land</option>
+                                            <option value="COMMERCIAL">Commercial</option>
+                                        </select>
+                                    </div>
+
+                                    <div className="space-y-2">
                                         <label className="text-[9px] font-black uppercase tracking-widest text-outline">Category</label>
                                         <select 
                                             value={formData.category || 'APARTMENT'}
@@ -438,8 +542,10 @@ export default function AddPropertyModal({ isOpen, onClose, onRefresh }: AddProp
                                         >
                                             <option value="APARTMENT">Apartment</option>
                                             <option value="VILLA">Villa</option>
-                                            <option value="PLOT">Plot/Land</option>
-                                            <option value="COMMERCIAL">Commercial</option>
+                                            <option value="INDEPENDENT_HOUSE">Ind. House</option>
+                                            <option value="LAND">Land/Site</option>
+                                            <option value="OFFICE">Office</option>
+                                            <option value="PLOT">Plot</option>
                                         </select>
                                     </div>
                                 </div>

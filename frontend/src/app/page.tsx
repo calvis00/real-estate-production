@@ -9,20 +9,26 @@ import Link from 'next/link';
 interface Property {
   id: string;
   title: string;
-  price: string;
+  price: number;
   location: string;
+  city?: string;
+  locality?: string;
   type: string;
-  imageUrl: string;
+  category: string;
+  images: string[];
+  videos: string[];
+  bedrooms?: number;
+  areaSqft?: number;
   featured?: boolean;
   verified?: boolean;
 }
 
 const categoryItems = [
-  { icon: 'corporate_fare', label: 'Office Spaces' },
-  { icon: 'groups', label: 'Coworking' },
-  { icon: 'park', label: 'Farmhouses' },
-  { icon: 'camera_indoor', label: 'Film Shoots' },
-  { icon: 'event_seat', label: 'Event Venues' },
+  { icon: 'castle', label: 'Villas', id: 'VILLA' },
+  { icon: 'apartment', label: 'Apartments', id: 'APARTMENT' },
+  { icon: 'landscape', label: 'Plots', id: 'PLOT' },
+  { icon: 'corporate_fare', label: 'Commercial', id: 'COMMERCIAL' },
+  { icon: 'park', label: 'Farmhouses', id: 'FARMHOUSE' },
 ];
 
 export default function LandingPage() {
@@ -51,10 +57,15 @@ export default function LandingPage() {
 
   // Update filtering when category changes
   useEffect(() => {
+    const activeProperties = properties.filter(p => !p.status || p.status === 'ACTIVE');
+    
     if (activeCategory === 'all') {
-      setFilteredProperties(properties);
+      setFilteredProperties(activeProperties);
     } else {
-      setFilteredProperties(properties.filter(p => p.category?.toLowerCase() === activeCategory.toLowerCase() || p.type?.toLowerCase() === activeCategory.toLowerCase()));
+      setFilteredProperties(activeProperties.filter(p => 
+        p.category?.toUpperCase() === activeCategory.toUpperCase() || 
+        p.type?.toUpperCase() === activeCategory.toUpperCase()
+      ));
     }
   }, [activeCategory, properties]);
 
@@ -218,14 +229,18 @@ export default function LandingPage() {
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
               {categoryItems.map((item, index) => {
-                const count = properties.filter(p => p.category === (item.label === 'Office Spaces' ? 'OFFICE' : item.label === 'Farmhouses' ? 'VILLA' : 'APARTMENT')).length;
+                const count = properties.filter(p => p.category === item.id).length;
                 return (
-                  <div key={index} className="bg-surface p-10 rounded-[2.5rem] border border-surface-container hover:border-secondary transition-all group text-center flex flex-col items-center">
-                    <div className="w-16 h-16 rounded-full bg-primary/5 flex items-center justify-center mb-6 group-hover:bg-primary transition-all">
-                      <span className="material-symbols-outlined text-primary group-hover:text-white">{item.icon}</span>
+                  <div 
+                    key={index} 
+                    onClick={() => setActiveCategory(activeCategory === item.id ? 'all' : item.id)}
+                    className={`bg-surface p-10 rounded-[2.5rem] border transition-all group text-center flex flex-col items-center cursor-pointer ${activeCategory === item.id ? 'border-secondary ring-2 ring-secondary/20' : 'border-surface-container hover:border-secondary'}`}
+                  >
+                    <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-6 transition-all ${activeCategory === item.id ? 'bg-primary text-white' : 'bg-primary/5 text-primary group-hover:bg-primary group-hover:text-white'}`}>
+                      <span className="material-symbols-outlined">{item.icon}</span>
                     </div>
                     <h3 className="font-bold text-primary">{item.label}</h3>
-                    <p className="text-[10px] text-outline mt-2 font-bold uppercase tracking-widest">{count > 0 ? `${count} ${count === 1 ? 'Asset' : 'Assets'}` : 'New Arrivals'}</p>
+                    <p className="text-[10px] text-outline mt-2 font-bold uppercase tracking-widest">{count > 0 ? `${count} ${count === 1 ? 'Asset' : 'Assets'}` : 'Explore'}</p>
                   </div>
                 );
               })}

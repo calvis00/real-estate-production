@@ -26,6 +26,7 @@ export const properties = pgTable('properties', {
   tags: text('tags').array(),
   featured: boolean('featured').default(false).notNull(),
   verified: boolean('verified').default(false).notNull(),
+  status: varchar('status', { length: 20 }).default('ACTIVE').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });

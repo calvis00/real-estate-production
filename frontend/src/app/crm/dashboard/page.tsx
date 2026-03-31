@@ -10,6 +10,8 @@ export default function CRMDashboard() {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'leads' | 'properties'>('leads');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [selectedProperty, setSelectedProperty] = useState<any>(null);
+  const [openPropertyMenuId, setOpenPropertyMenuId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
   const [stats, setStats] = useState({ totalLeads: 0, totalProperties: 0, closed: 0 });
@@ -80,6 +82,44 @@ export default function CRMDashboard() {
     } catch (err) {
       console.error(`Update ${field} failed:`, err);
     }
+  };
+
+  const deleteProperty = async (id: string | number) => {
+    if (!window.confirm('Delete this property permanently? This action cannot be undone.')) return;
+    try {
+      const res = await fetch(`http://localhost:8081/api/properties/${id}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      if (res.ok) {
+        setProperties(properties.filter(p => p.id !== id));
+      }
+    } catch (err) {
+      console.error('Delete property failed:', err);
+    }
+  };
+
+  const setPropertyStatus = async (id: string | number, newStatus: string) => {
+    try {
+      const res = await fetch(`http://localhost:8081/api/properties/${id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+        credentials: 'include'
+      });
+      if (res.ok) {
+        setProperties(properties.map(p => p.id === id ? { ...p, status: newStatus } : p));
+        setOpenPropertyMenuId(null);
+      }
+    } catch (err) {
+      console.error('Status update failed:', err);
+    }
+  };
+
+  const openEditModal = (property: any) => {
+    setSelectedProperty(property);
+    setIsModalOpen(true);
+    setOpenPropertyMenuId(null);
   };
 
   const exportLeads = () => {
@@ -219,7 +259,7 @@ export default function CRMDashboard() {
               )}
               {activeTab === 'properties' && (
                 <button
-                  onClick={() => setIsModalOpen(true)}
+                  onClick={() => { setSelectedProperty(null); setIsModalOpen(true); }}
                   className="bg-primary text-white px-6 py-3 rounded-xl font-bold text-xs flex items-center gap-2 hover:bg-opacity-95 transition-all shadow-lg active:scale-95"
                 >
                   <span className="material-symbols-outlined text-sm">add_circle</span>
@@ -432,9 +472,12 @@ export default function CRMDashboard() {
               <table className="w-full text-left table-fixed border-collapse border border-surface-container">
                 <thead>
                   <tr className="bg-surface/50 text-[10px] font-black uppercase tracking-wider text-outline">
-                    <th className="px-8 py-5 w-[40%] text-center border border-surface-container">Property</th>
-                    <th className="px-8 py-5 w-[30%] text-center border border-surface-container">Location</th>
-                    <th className="px-8 py-5 w-[20%] text-center border border-surface-container">Price</th>
+                    <th className="px-8 py-5 w-[28%] text-center border border-surface-container">Property</th>
+                    <th className="px-8 py-5 w-[8%] text-center border border-surface-container">Date</th>
+                    <th className="px-8 py-5 w-[17%] text-center border border-surface-container">Location</th>
+                    <th className="px-8 py-5 w-[12%] text-center border border-surface-container">Status</th>
+                    <th className="px-8 py-5 w-[15%] text-center border border-surface-container">Price</th>
+                    <th className="px-8 py-5 w-[10%] text-center border border-surface-container">Rate/Sqft</th>
                     <th className="px-8 py-5 text-center w-[10%] border border-surface-container">Action</th>
                   </tr>
                 </thead>
@@ -445,9 +488,10 @@ export default function CRMDashboard() {
                         <div className="flex items-center gap-4">
                           <div className="relative">
                             <img 
-                              src={(p.images && p.images.length > 0) ? p.images[0] : "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&q=80&w=1000"} 
+                              src={(p.images && p.images.length > 0) ? p.images[0] : "/placeholder.png"} 
                               className="w-14 h-14 rounded-xl object-cover border border-surface-container shadow-sm" 
                               alt="" 
+                              onError={(e: any) => { e.target.src = "/placeholder.png"; }}
                             />
                             {p.videos && p.videos.length > 0 && (
                               <div className="absolute -bottom-1 -right-1 bg-primary text-white w-5 h-5 rounded-full flex items-center justify-center border-2 border-surface">
@@ -463,18 +507,73 @@ export default function CRMDashboard() {
                           </div>
                         </div>
                       </td>
+                      <td className="px-8 py-5 text-center border border-surface-container">
+                        <span className="text-xs font-bold text-outline">
+                          {p.createdAt ? new Date(p.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: '2-digit', year: '2-digit' }) : '—'}
+                        </span>
+                      </td>
                       <td className="px-8 py-5 text-xs font-bold text-outline uppercase tracking-wider border border-surface-container text-center">
                         {p.locality || p.location}, {p.city || 'Tamil Nadu'}
+                      </td>
+                      <td className="px-8 py-5 text-center border border-surface-container">
+                        <span className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest ${
+                            p.status === 'ACTIVE' ? 'bg-green-50 text-green-600 border border-green-200' : 
+                            p.status === 'SOLD' ? 'bg-blue-50 text-blue-600 border border-blue-200' :
+                            'bg-red-50 text-red-500 border border-red-200'
+                        }`}>
+                          {p.status || 'ACTIVE'}
+                        </span>
                       </td>
                       <td className="px-8 py-5 text-sm font-bold text-primary border border-surface-container text-center">
                         {p.price >= 10000000 ? `₹${(p.price / 10000000).toFixed(2)} Cr` :
                           p.price >= 100000 ? `₹${(p.price / 100000).toFixed(2)} L` :
                             `₹${p.price?.toLocaleString()}`}
                       </td>
-                      <td className="px-8 py-5 text-center border border-surface-container">
-                        <button className="p-2 rounded-lg hover:bg-surface-container/20 text-outline hover:text-primary">
+                      <td className="px-8 py-5 text-xs font-black text-outline/60 border border-surface-container text-center">
+                        {p.price && p.areaSqft ? `₹${Math.round(p.price / p.areaSqft).toLocaleString()}` : '—'}
+                      </td>
+                      <td className="px-8 py-5 text-center border border-surface-container relative">
+                        <button 
+                            onClick={() => setOpenPropertyMenuId(openPropertyMenuId === p.id ? null : p.id)}
+                            className="p-2 rounded-lg hover:bg-surface-container/20 text-outline hover:text-primary transition-all"
+                        >
                           <span className="material-symbols-outlined">more_vert</span>
                         </button>
+                        
+                        {openPropertyMenuId === p.id && (
+                            <div className="absolute right-12 top-10 w-48 bg-surface border border-surface-container rounded-2xl shadow-2xl z-50 p-2 animate-in fade-in zoom-in-95">
+                                <button 
+                                    onClick={() => openEditModal(p)}
+                                    className="w-full flex items-center gap-3 px-4 py-3 text-xs font-black uppercase text-outline hover:text-primary hover:bg-primary/5 rounded-xl transition-all"
+                                >
+                                    <span className="material-symbols-outlined text-sm">edit</span>
+                                    Edit Details
+                                </button>
+                                <button 
+                                    onClick={() => setPropertyStatus(p.id, p.status === 'ACTIVE' ? 'HIDDEN' : 'ACTIVE')}
+                                    className="w-full flex items-center gap-3 px-4 py-3 text-xs font-black uppercase text-outline hover:text-secondary hover:bg-secondary/5 rounded-xl transition-all"
+                                >
+                                    <span className="material-symbols-outlined text-sm">{p.status === 'ACTIVE' ? 'visibility_off' : 'visibility'}</span>
+                                    {p.status === 'ACTIVE' ? 'Hide Listing' : 'Make Active'}
+                                </button>
+                                <button 
+                                    onClick={() => setPropertyStatus(p.id, 'SOLD')}
+                                    className="w-full flex items-center gap-3 px-4 py-3 text-xs font-black uppercase text-outline hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all"
+                                >
+                                    <span className="material-symbols-outlined text-sm">sell</span>
+                                    Mark as Sold
+                                </button>
+                                <div className="h-px bg-surface-container my-1 mx-2" />
+                                <button 
+                                    onClick={() => deleteProperty(p.id)}
+                                    className="w-full flex items-center gap-3 px-4 py-3 text-xs font-black uppercase text-red-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                                >
+                                    <span className="material-symbols-outlined text-sm">delete</span>
+                                    Delete Record
+                                </button>
+                            </div>
+                        )}
+                        
                       </td>
                     </tr>
                   ))}
@@ -487,8 +586,9 @@ export default function CRMDashboard() {
 
       <AddPropertyModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={() => { setIsModalOpen(false); setSelectedProperty(null); }}
         onRefresh={fetchData}
+        initialData={selectedProperty}
       />
     </div>
   );

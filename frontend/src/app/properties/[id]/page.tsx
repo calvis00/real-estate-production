@@ -7,22 +7,18 @@ import LeadForm from '@/components/LeadForm';
 interface Property {
   id: string;
   title: string;
-  price: string | number;
-  location?: string;
-  city?: string;
-  locality?: string;
-  beds?: number;
-  bedrooms?: number;
-  baths?: number;
-  bathrooms?: number;
-  sqft?: number;
-  area_sqft?: number;
-  areaSqft?: number;
-  image: string;
-  imageUrl?: string;
+  price: number;
+  city: string;
+  locality: string;
+  bedrooms: number;
+  bathrooms: number;
+  areaSqft: number;
   description: string;
   type: string;
-  tags?: string[];
+  category: string;
+  images: string[];
+  videos: string[];
+  tags: string[];
 }
 
 export default function PropertyDetailPage() {
@@ -30,6 +26,7 @@ export default function PropertyDetailPage() {
   const router = useRouter();
   const [property, setProperty] = useState<Property | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activeImage, setActiveImage] = useState(0);
 
   useEffect(() => {
     if (!id) return;
@@ -45,9 +42,7 @@ export default function PropertyDetailPage() {
       });
   }, [id]);
 
-// Helpers
-  const formatPrice = (p: string | number) => {
-    if (typeof p === 'string') return p;
+  const formatPrice = (p: number) => {
     if (p >= 10000000) return `₹${(p / 10000000).toFixed(2)} Cr`;
     if (p >= 100000) return `₹${(p / 100000).toFixed(2)} Lakhs`;
     return `₹${p.toLocaleString()}`;
@@ -72,100 +67,170 @@ export default function PropertyDetailPage() {
     </div>
   );
 
-  const displayImage = property.imageUrl || property.image || "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?q=80&w=2070&auto=format&fit=crop";
-  const displayLocation = (property as any).location || ((property as any).city && (property as any).locality ? `${(property as any).locality}, ${(property as any).city}` : (property as any).city || "Tamil Nadu");
-  const displayBeds = (property as any).beds || (property as any).bedrooms || 3;
-  const displayBaths = (property as any).baths || (property as any).bathrooms || 2;
-  const displaySqft = (property as any).sqft || (property as any).area_sqft || (property as any).areaSqft || 2400;
+  const displayLocation = `${property.locality}, ${property.city}`;
   const displayPrice = formatPrice(property.price);
 
   return (
     <div className="min-h-screen bg-background text-on-surface font-body overflow-x-hidden">
-      {/* Cinematic Hero */}
-      <section className="relative h-[85vh] w-full overflow-hidden">
-        <img 
-          src={displayImage} 
-          alt={property.title} 
-          className="w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-background via-background/20 to-transparent" />
+      
+      {/* Cinematic Hero & Gallery Section */}
+      <section className="relative min-h-[90vh] w-full flex flex-col lg:flex-row bg-black">
         
-        {/* Title Overlay */}
-        <div className="absolute bottom-12 left-0 w-full px-6">
-            <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-end gap-10">
-                <div className="max-w-4xl text-left animate-slow-fade">
-                    <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-surface/90 backdrop-blur-md border border-surface-container mb-6 font-bold text-[10px] uppercase tracking-widest text-primary shadow-sm">
-                        <span className="material-symbols-outlined text-sm text-secondary">location_on</span>
-                        {displayLocation}
-                    </div>
-                    <h1 className="text-5xl md:text-8xl font-extrabold font-headline leading-[0.9] text-primary mb-2 tracking-tighter">
-                        {property.title}
-                    </h1>
-                </div>
-                <div className="bg-surface/95 backdrop-blur-md p-10 rounded-[3rem] border border-surface-container shadow-2xl flex flex-col items-center min-w-[320px] golden-edge">
-                    <span className="text-outline text-[10px] font-bold uppercase tracking-[0.3em] mb-2">Investment Value</span>
-                    <div className="text-5xl font-extrabold font-headline text-primary tracking-tighter">{displayPrice}</div>
-                </div>
+        {/* Main Media Player */}
+        <div className="flex-1 relative flex items-center justify-center group">
+          {property.images && property.images.length > 0 ? (
+            <img 
+              src={property.images[activeImage]} 
+              alt={property.title} 
+              className="max-w-full max-h-screen object-contain animate-in fade-in zoom-in-95 duration-700"
+            />
+          ) : (
+            <div className="text-white/20 font-black text-9xl">NO MEDIA</div>
+          )}
+          
+          <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-60" />
+          
+          {/* Navigation Controls */}
+          {property.images && property.images.length > 1 && (
+            <div className="absolute inset-x-8 top-1/2 -translate-y-1/2 flex justify-between pointer-events-none">
+              <button 
+                onClick={() => setActiveImage(prev => (prev === 0 ? property.images.length - 1 : prev - 1))}
+                className="pointer-events-auto p-4 bg-white/10 backdrop-blur-xl rounded-full text-white hover:bg-white/20 transition-all shadow-2xl active:scale-90"
+              >
+                <span className="material-symbols-outlined text-4xl">chevron_left</span>
+              </button>
+              <button 
+                onClick={() => setActiveImage(prev => (prev === property.images.length - 1 ? 0 : prev + 1))}
+                className="pointer-events-auto p-4 bg-white/10 backdrop-blur-xl rounded-full text-white hover:bg-white/20 transition-all shadow-2xl active:scale-90"
+              >
+                <span className="material-symbols-outlined text-4xl">chevron_right</span>
+              </button>
+            </div>
+          )}
+        </div>
+
+        {/* Vertical Thumbnail Strip */}
+        {property.images && property.images.length > 1 && (
+            <div className="lg:w-40 bg-black/40 backdrop-blur-3xl p-6 flex lg:flex-col gap-4 overflow-x-auto lg:overflow-y-auto no-scrollbar border-l border-white/5 order-last lg:order-none">
+                {property.images.map((img, i) => (
+                    <button 
+                        key={i} 
+                        onClick={() => setActiveImage(i)}
+                        className={`relative w-24 lg:w-full aspect-[4/3] rounded-xl overflow-hidden border-2 transition-all flex-shrink-0 ${activeImage === i ? 'border-secondary scale-105 shadow-xl shadow-secondary/20' : 'border-transparent opacity-40 hover:opacity-100'}`}
+                    >
+                        <img src={img} className="w-full h-full object-cover" alt="" />
+                    </button>
+                ))}
+                {property.videos && property.videos.map((vid, i) => (
+                    <button key={i} className="relative w-24 lg:w-full aspect-[4/3] rounded-xl overflow-hidden border-2 border-transparent opacity-40 hover:opacity-100 bg-primary/20 flex items-center justify-center">
+                        <span className="material-symbols-outlined text-white text-3xl">play_circle</span>
+                    </button>
+                ))}
+            </div>
+        )}
+
+        {/* Overlay Metadata */}
+        <div className="absolute top-12 left-12 z-20 pointer-events-none">
+            <button 
+                onClick={() => router.back()}
+                className="pointer-events-auto p-3 bg-white/10 backdrop-blur-xl rounded-full text-white hover:bg-white/20 transition-all mb-8 flex items-center gap-2 pr-6 border border-white/10"
+            >
+                <span className="material-symbols-outlined">arrow_back</span>
+                <span className="text-[10px] font-black uppercase tracking-widest">Back to Search</span>
+            </button>
+            <div className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-secondary text-primary font-black text-[11px] uppercase tracking-widest shadow-2xl shadow-secondary/40">
+                <span className="material-symbols-outlined text-sm">auto_awesome</span>
+                {property.category === 'VILLA' ? 'Exclusive Estate' : property.category}
             </div>
         </div>
       </section>
 
-      {/* Main Content */}
-      <section className="py-32 px-6 relative">
-        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-20">
+      {/* Main Content Section */}
+      <section className="py-24 px-6 bg-background relative -mt-20 rounded-t-[4rem] z-30 shadow-[0_-40px_80px_rgba(0,0,0,0.08)]">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-24">
           
-          {/* Property Context */}
-          <div className="lg:col-span-8 text-left">
-            <div className="grid grid-cols-3 gap-8 mb-20 p-10 bg-surface border border-surface-container rounded-[3rem] shadow-sm">
-                <DetailItem icon="bed" val={displayBeds} label="Luxury Suites" />
-                <DetailItem icon="bathtub" val={displayBaths} label="Spa Baths" isMiddle />
-                <DetailItem icon="square_foot" val={displaySqft} label="Total Area (sqft)" />
-            </div>
-
-            <div className="space-y-12 mb-20">
-                <div className="inline-flex items-center gap-4 text-outline font-bold uppercase tracking-[0.2em] text-[10px]">
-                    <div className="w-10 h-[1px] bg-primary/20" />
-                    The Narrative
-                </div>
-                <p className="text-on-surface text-2xl leading-relaxed font-headline font-medium opacity-90 tracking-tight">
-                    {property.description || "A masterfully crafted estate that harmonizes contemporary architectural precision with the organic tranquility of its natural surroundings."}
-                </p>
-                <div className="p-8 border-l-2 border-secondary bg-primary/5 italic text-primary/70 text-lg font-headline">
-                    "Every element in this collection tells a story of craftsmanship and heritage, curated exclusively for the discerning few."
-                </div>
-            </div>
-
-            {/* Features */}
-            <div className="flex flex-wrap gap-4">
-                {(property.tags && property.tags.length > 0 ? property.tags : ['Verified Asset', 'Forest Views', 'Heritage Build', 'Gold Standard']).map((tag, i) => (
-                    <div key={i} className="px-6 py-4 bg-surface border border-surface-container rounded-2xl text-[10px] font-bold uppercase tracking-widest text-primary hover:border-secondary/50 transition-all cursor-default flex items-center gap-2">
-                        <span className="material-symbols-outlined text-sm text-secondary">verified</span>
-                        {tag}
+          <div className="lg:col-span-8 space-y-20 text-left">
+            {/* Header Info */}
+            <div className="space-y-6">
+                <div className="flex flex-col gap-2">
+                    <div className="flex items-center gap-2 text-secondary font-black uppercase tracking-[0.3em] text-[10px]">
+                        <span className="material-symbols-outlined text-sm">location_on</span>
+                        {displayLocation}
                     </div>
+                    <h1 className="text-4xl md:text-6xl font-black font-headline text-primary tracking-tighter leading-[1.1] uppercase">{property.title}</h1>
+                </div>
+                <div className="inline-block px-6 py-3 bg-secondary/10 border border-secondary/20 rounded-2xl text-3xl font-black font-headline text-secondary tracking-tighter">
+                    {displayPrice}
+                </div>
+            </div>
+
+            {/* Quick Specs */}
+            <div className="flex items-center justify-between p-8 bg-surface border border-surface-container rounded-[3rem] shadow-sm overflow-hidden golden-edge">
+                <DetailItem icon="bed" val={property.bedrooms} label="Luxury Suites" />
+                <div className="h-12 w-px bg-surface-container" />
+                <DetailItem icon="bathtub" val={property.bathrooms} label="Spa Baths" />
+                <div className="h-12 w-px bg-surface-container" />
+                <DetailItem icon="square_foot" val={property.areaSqft} label="Area (sqft)" />
+            </div>
+
+            {/* Narrative Content (Medium Inspired) */}
+            <div className="space-y-12">
+                <div className="flex items-center gap-4">
+                    <div className="w-12 h-px bg-primary/10" />
+                    <span className="text-[10px] font-black uppercase tracking-[0.4em] text-outline opacity-40">The Narrative</span>
+                </div>
+                <div 
+                    className="prose prose-xl font-serif text-primary/80 leading-relaxed max-w-none prose-p:my-6 prose-strong:text-primary prose-ul:list-none prose-ul:p-0 prose-li:my-4"
+                    dangerouslySetInnerHTML={{ __html: property.description }}
+                />
+            </div>
+
+            {/* Tags / Features */}
+            <div className="flex flex-wrap gap-4 pt-12">
+                {property.tags && property.tags.map((tag, i) => (
+                    <span key={i} className="px-8 py-5 bg-surface border border-surface-container rounded-3xl text-[10px] font-black uppercase tracking-[0.2em] text-primary hover:border-secondary cursor-default transition-all flex items-center gap-3">
+                        <span className="material-symbols-outlined text-secondary text-base">verified</span>
+                        {tag}
+                    </span>
                 ))}
             </div>
           </div>
 
-          {/* Acquisition Concierge */}
+          {/* Contact / Lead Sidebar */}
           <div className="lg:col-span-4 relative">
             <div className="sticky top-40">
-                <div className="bg-surface rounded-[3.5rem] p-10 border border-surface-container shadow-2xl relative overflow-hidden golden-edge">
-                    <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-primary via-secondary to-primary opacity-20" />
-                    <div className="text-left mb-10">
-                        <h3 className="text-2xl font-extrabold font-headline text-primary mb-1 tracking-tight">Acquisition</h3>
-                        <p className="text-outline text-[10px] font-bold uppercase tracking-widest">Direct VIP Concierge Line</p>
+                <div className="bg-surface p-10 rounded-[3rem] border border-surface-container shadow-2xl relative overflow-hidden group">
+                    <div className="absolute inset-0 bg-primary opacity-0 group-hover:opacity-[0.01] transition-opacity duration-700" />
+                    <div className="mb-8">
+                        <h3 className="text-2xl font-black font-headline text-primary tracking-tighter mb-1 uppercase">Acquisition</h3>
+                        <p className="text-[9px] font-black uppercase tracking-widest text-outline">Exclusive Site Visit Access</p>
                     </div>
+                    
                     <LeadForm />
-                    <div className="mt-10 pt-10 border-t border-surface-container space-y-4">
-                        <div className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-widest text-outline">
-                            <span className="material-symbols-outlined text-sm text-secondary">verified_user</span> 
-                            Verified Developer
+
+                    <div className="mt-12 pt-12 border-t border-surface-container space-y-6">
+                        <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-widest text-outline">
+                            <div className="w-10 h-10 rounded-2xl bg-primary/5 flex items-center justify-center text-secondary">
+                                <span className="material-symbols-outlined text-sm">schedule</span>
+                            </div>
+                            Response in 15 Minutes
                         </div>
-                        <div className="flex items-center gap-3 text-[10px] font-bold uppercase tracking-widest text-outline">
-                            <span className="material-symbols-outlined text-sm text-secondary">event_available</span> 
-                            Request Private Tour
+                        <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-widest text-outline">
+                            <div className="w-10 h-10 rounded-2xl bg-primary/5 flex items-center justify-center text-secondary">
+                                <span className="material-symbols-outlined text-sm">contact_phone</span>
+                            </div>
+                            Direct Principal Liaison
                         </div>
                     </div>
+                </div>
+                
+                {/* Visual Accent */}
+                <div className="mt-8 p-12 bg-secondary rounded-[4rem] text-primary flex items-center justify-between shadow-2xl shadow-secondary/20">
+                    <div>
+                        <p className="text-[10px] font-black uppercase tracking-widest mb-1">Status</p>
+                        <p className="text-2xl font-black font-headline uppercase leading-none">Available</p>
+                    </div>
+                    <span className="material-symbols-outlined text-5xl">verified</span>
                 </div>
             </div>
           </div>
@@ -173,26 +238,28 @@ export default function PropertyDetailPage() {
         </div>
       </section>
 
-      {/* Simplified Footer */}
-      <footer className="py-20 bg-primary text-white">
-        <div className="max-w-7xl mx-auto px-6 text-center">
-            <div className="text-3xl font-extrabold font-headline tracking-tighter mb-2">ABC<span className="text-secondary">.</span> Portfolio</div>
-            <p className="text-white/40 text-[10px] font-bold uppercase tracking-widest italic">Curated Nature-First Estates © 2026</p>
+      {/* Footer */}
+      <footer className="py-32 bg-primary text-white text-center">
+        <div className="max-w-7xl mx-auto px-6">
+            <div className="text-5xl font-black font-headline tracking-[ -0.05em] mb-4 uppercase">ABC<span className="text-secondary">.</span> Global Portofolio</div>
+            <p className="text-white/30 text-[10px] font-bold uppercase tracking-[0.5em]">Curated Nature-First Assets © 2026</p>
         </div>
       </footer>
     </div>
   );
 }
 
-function DetailItem({ icon, val, label, isMiddle }: { icon: string, val: number | string, label: string, isMiddle?: boolean }) {
+function DetailItem({ icon, val, label }: { icon: string, val: number | string, label: string }) {
     return (
-        <div className={`flex flex-col items-center gap-3 ${isMiddle ? 'border-x border-surface-container' : ''}`}>
-            <div className="w-14 h-14 bg-primary/5 text-primary rounded-2xl flex items-center justify-center group overflow-hidden relative">
-                <div className="absolute inset-0 bg-primary translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
-                <span className="material-symbols-outlined relative z-10 group-hover:text-white transition-colors">{icon}</span>
+        <div className="flex flex-col items-center gap-4 flex-1">
+            <div className="w-16 h-16 bg-primary/5 text-primary rounded-[1.5rem] flex items-center justify-center group relative overflow-hidden transition-all hover:scale-110">
+                <div className="absolute inset-x-0 bottom-0 h-1 bg-secondary translate-y-full group-hover:translate-y-0 transition-transform duration-500" />
+                <span className="material-symbols-outlined text-2xl">{icon}</span>
             </div>
-            <span className="text-3xl font-extrabold font-headline text-primary tracking-tighter">{val}</span>
-            <span className="text-[9px] font-bold text-outline uppercase tracking-[0.2em]">{label}</span>
+            <div className="text-center">
+                <span className="block text-3xl font-black font-headline text-primary tracking-tighter">{val}</span>
+                <span className="block text-[8px] font-black text-outline uppercase tracking-[0.3em] mt-1">{label}</span>
+            </div>
         </div>
     )
 }
