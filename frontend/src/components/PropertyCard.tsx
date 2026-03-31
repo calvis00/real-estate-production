@@ -10,14 +10,9 @@ interface PropertyCardProps {
   city?: string;
   locality?: string;
   type: string;
-  imageUrl?: string;
-  image?: string;
-  beds?: number;
+  images?: string[];
+  videos?: string[];
   bedrooms?: number;
-  baths?: number;
-  bathrooms?: number;
-  sqft?: number;
-  area_sqft?: number;
   areaSqft?: number;
   featured?: boolean;
   verified?: boolean;
@@ -29,27 +24,25 @@ export default function PropertyCard({
   location, 
   city,
   locality,
-  imageUrl, 
-  image, 
+  images,
+  videos, 
   type, 
-  beds, 
   bedrooms,
-  sqft, 
-  area_sqft,
   areaSqft 
 }: PropertyCardProps) {
   // Helpers
   const formatPrice = (p: string | number) => {
     if (typeof p === 'string') return p;
-    if (p >= 10000000) return `₹${(p / 10000000).toFixed(2)} Cr`;
-    if (p >= 100000) return `₹${(p / 100000).toFixed(2)} Lakhs`;
-    return `₹${p.toLocaleString()}`;
+    const num = typeof p === 'number' ? p : parseFloat(p);
+    if (num >= 10000000) return `₹${(num / 10000000).toFixed(2)} Cr`;
+    if (num >= 100000) return `₹${(num / 100000).toFixed(2)} Lakhs`;
+    return `₹${num.toLocaleString()}`;
   };
 
-  const displayImage = imageUrl || image || "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?q=80&w=2070&auto=format&fit=crop";
+  const displayImage = (images && images.length > 0) ? images[0] : "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?q=80&w=2070&auto=format&fit=crop";
   const displayLocation = location || (city && locality ? `${locality}, ${city}` : city || "Tamil Nadu");
-  const displayBeds = beds || bedrooms || '-';
-  const displaySqft = sqft || area_sqft || areaSqft || '-';
+  const displayBeds = bedrooms || '-';
+  const displaySqft = areaSqft || '-';
   const displayPrice = formatPrice(price);
 
   return (

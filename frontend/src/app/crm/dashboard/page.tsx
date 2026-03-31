@@ -443,8 +443,24 @@ export default function CRMDashboard() {
                     <tr key={p.id} className="hover:bg-surface transition-colors">
                       <td className="px-8 py-5 border border-surface-container">
                         <div className="flex items-center gap-4">
-                          <img src={p.image || p.imageUrl || "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&q=80&w=1000"} className="w-14 h-14 rounded-xl object-cover border border-surface-container" alt="" />
-                          <span className="font-bold text-sm text-primary">{p.title}</span>
+                          <div className="relative">
+                            <img 
+                              src={(p.images && p.images.length > 0) ? p.images[0] : "https://images.unsplash.com/photo-1512917774080-9991f1c4c750?auto=format&fit=crop&q=80&w=1000"} 
+                              className="w-14 h-14 rounded-xl object-cover border border-surface-container shadow-sm" 
+                              alt="" 
+                            />
+                            {p.videos && p.videos.length > 0 && (
+                              <div className="absolute -bottom-1 -right-1 bg-primary text-white w-5 h-5 rounded-full flex items-center justify-center border-2 border-surface">
+                                <span className="material-symbols-outlined text-[10px]">videocam</span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="font-bold text-sm text-primary">{p.title}</span>
+                            <span className="text-[9px] font-bold text-outline uppercase tracking-widest">
+                              {p.images?.length || 0} Photos • {p.videos?.length || 0} Videos
+                            </span>
+                          </div>
                         </div>
                       </td>
                       <td className="px-8 py-5 text-xs font-bold text-outline uppercase tracking-wider border border-surface-container text-center">
