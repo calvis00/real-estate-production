@@ -9,6 +9,31 @@ export default function CRMDashboard() {
   const [properties, setProperties] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'leads' | 'properties'>('leads');
+  
+  // Persistent Tab State
+  useEffect(() => {
+    const savedTab = localStorage.getItem('crmActiveTab') as 'leads' | 'properties';
+    if (savedTab && (savedTab === 'leads' || savedTab === 'properties')) {
+      setActiveTab(savedTab);
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem('crmActiveTab', activeTab);
+  }, [activeTab]);
+
+  // Handle Click Outside to close menu
+  useEffect(() => {
+    const handleGlobalClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.property-action-menu') && !target.closest('.property-action-button')) {
+        setOpenPropertyMenuId(null);
+      }
+    };
+    window.addEventListener('click', handleGlobalClick);
+    return () => window.removeEventListener('click', handleGlobalClick);
+  }, []);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedProperty, setSelectedProperty] = useState<any>(null);
   const [openPropertyMenuId, setOpenPropertyMenuId] = useState<string | null>(null);
@@ -93,6 +118,7 @@ export default function CRMDashboard() {
       });
       if (res.ok) {
         setProperties(properties.filter(p => p.id !== id));
+        setOpenPropertyMenuId(null);
       }
     } catch (err) {
       console.error('Delete property failed:', err);
@@ -534,14 +560,17 @@ export default function CRMDashboard() {
                       </td>
                       <td className="px-8 py-5 text-center border border-surface-container relative">
                         <button 
-                            onClick={() => setOpenPropertyMenuId(openPropertyMenuId === p.id ? null : p.id)}
-                            className="p-2 rounded-lg hover:bg-surface-container/20 text-outline hover:text-primary transition-all"
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenPropertyMenuId(openPropertyMenuId === p.id ? null : p.id);
+                            }}
+                            className="p-2 rounded-lg hover:bg-surface-container/20 text-outline hover:text-primary transition-all property-action-button"
                         >
                           <span className="material-symbols-outlined">more_vert</span>
                         </button>
                         
                         {openPropertyMenuId === p.id && (
-                            <div className="absolute right-12 top-10 w-48 bg-surface border border-surface-container rounded-2xl shadow-2xl z-50 p-2 animate-in fade-in zoom-in-95">
+                            <div className="absolute right-12 top-10 w-48 bg-surface border border-surface-container rounded-2xl shadow-2xl z-50 p-2 animate-in fade-in zoom-in-95 property-action-menu">
                                 <button 
                                     onClick={() => openEditModal(p)}
                                     className="w-full flex items-center gap-3 px-4 py-3 text-xs font-black uppercase text-outline hover:text-primary hover:bg-primary/5 rounded-xl transition-all"

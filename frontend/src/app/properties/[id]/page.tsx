@@ -27,6 +27,24 @@ export default function PropertyDetailPage() {
   const [property, setProperty] = useState<Property | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeImage, setActiveImage] = useState(0);
+  const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+
+  // Sync scroll lock and keyboard events
+  useEffect(() => {
+    if (isLightboxOpen) {
+      document.body.style.overflow = 'hidden';
+      const handleKeyDown = (e: KeyboardEvent) => {
+        if (e.key === 'Escape') setIsLightboxOpen(false);
+        if (e.key === 'ArrowLeft') setActiveImage(prev => (prev === 0 ? (property?.images.length || 1) - 1 : prev - 1));
+        if (e.key === 'ArrowRight') setActiveImage(prev => (prev === (property?.images.length || 1) - 1 ? 0 : prev + 1));
+      };
+      window.addEventListener('keydown', handleKeyDown);
+      return () => {
+        document.body.style.overflow = 'auto';
+        window.removeEventListener('keydown', handleKeyDown);
+      };
+    }
+  }, [isLightboxOpen, property]);
 
   useEffect(() => {
     if (!id) return;
@@ -74,18 +92,21 @@ export default function PropertyDetailPage() {
     <div className="min-h-screen bg-background text-on-surface font-body overflow-x-hidden">
       
       {/* Cinematic Hero & Gallery Section */}
-      <section className="relative min-h-[90vh] w-full flex flex-col lg:flex-row bg-black">
+      <section className="relative min-h-[60vh] w-full flex flex-col lg:flex-row bg-slate-950 overflow-hidden">
         
         {/* Main Media Player */}
-        <div className="flex-1 relative flex items-center justify-center group">
+        <div 
+            onClick={() => setIsLightboxOpen(true)}
+            className="flex-1 relative flex items-center justify-center group overflow-hidden bg-black/40 cursor-zoom-in"
+        >
           {property.images && property.images.length > 0 ? (
             <img 
               src={property.images[activeImage]} 
               alt={property.title} 
-              className="max-w-full max-h-screen object-contain animate-in fade-in zoom-in-95 duration-700"
+              className="max-w-full max-h-[60vh] object-contain animate-in fade-in zoom-in-95 duration-700 pointer-events-none"
             />
           ) : (
-            <div className="text-white/20 font-black text-9xl">NO MEDIA</div>
+            <div className="text-white/5 font-black text-6xl tracking-tighter uppercase select-none">No Media Available</div>
           )}
           
           <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent opacity-60" />
@@ -115,7 +136,7 @@ export default function PropertyDetailPage() {
                 {property.images.map((img, i) => (
                     <button 
                         key={i} 
-                        onClick={() => setActiveImage(i)}
+                        onClick={(e) => { e.stopPropagation(); setActiveImage(i); setIsLightboxOpen(true); }}
                         className={`relative w-24 lg:w-full aspect-[4/3] rounded-xl overflow-hidden border-2 transition-all flex-shrink-0 ${activeImage === i ? 'border-secondary scale-105 shadow-xl shadow-secondary/20' : 'border-transparent opacity-40 hover:opacity-100'}`}
                     >
                         <img src={img} className="w-full h-full object-cover" alt="" />
@@ -238,13 +259,48 @@ export default function PropertyDetailPage() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="py-32 bg-primary text-white text-center">
-        <div className="max-w-7xl mx-auto px-6">
-            <div className="text-5xl font-black font-headline tracking-[ -0.05em] mb-4 uppercase">ABC<span className="text-secondary">.</span> Global Portofolio</div>
-            <p className="text-white/30 text-[10px] font-bold uppercase tracking-[0.5em]">Curated Nature-First Assets © 2026</p>
-        </div>
-      </footer>
+      {/* LIGHTBOX OVERLAY */}
+      {isLightboxOpen && property.images && property.images.length > 0 && (
+          <div className="fixed inset-0 z-[100] bg-black/95 backdrop-blur-xl flex items-center justify-center animate-in fade-in duration-300">
+              <button 
+                  onClick={() => setIsLightboxOpen(false)}
+                  className="absolute top-8 right-8 z-[110] p-4 bg-white/10 hover:bg-white/20 rounded-full text-white transition-all shadow-2xl active:scale-90"
+              >
+                  <span className="material-symbols-outlined text-4xl">close</span>
+              </button>
+
+              <div className="absolute top-12 left-1/2 -translate-x-1/2 text-white/40 text-[10px] font-black uppercase tracking-[0.4em] z-[110]">
+                  {activeImage + 1} of {property.images.length}
+              </div>
+
+              {/* Lightbox Navigation */}
+              {property.images.length > 1 && (
+                  <div className="absolute inset-x-8 top-1/2 -translate-y-1/2 flex justify-between z-[110]">
+                      <button 
+                          onClick={(e) => { e.stopPropagation(); setActiveImage(prev => (prev === 0 ? property.images.length - 1 : prev - 1)) }}
+                          className="p-6 bg-white/5 hover:bg-white/10 rounded-full text-white transition-all shadow-2xl active:scale-90"
+                      >
+                          <span className="material-symbols-outlined text-5xl">chevron_left</span>
+                      </button>
+                      <button 
+                          onClick={(e) => { e.stopPropagation(); setActiveImage(prev => (prev === property.images.length - 1 ? 0 : prev + 1)) }}
+                          className="p-6 bg-white/5 hover:bg-white/10 rounded-full text-white transition-all shadow-2xl active:scale-90"
+                      >
+                          <span className="material-symbols-outlined text-5xl">chevron_right</span>
+                      </button>
+                  </div>
+              )}
+
+              <div className="relative w-full h-full flex items-center justify-center p-12" onClick={() => setIsLightboxOpen(false)}>
+                  <img 
+                      src={property.images[activeImage]} 
+                      className="max-w-full max-h-full object-contain shadow-[0_0_100px_rgba(0,0,0,0.5)] animate-in zoom-in-95 duration-500" 
+                      alt="" 
+                      onClick={(e) => e.stopPropagation()}
+                  />
+              </div>
+          </div>
+      )}
     </div>
   );
 }

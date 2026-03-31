@@ -136,6 +136,19 @@ export default function LandingPage() {
                   {activeSearchTab === 'buy' && (
                     <>
                       <div className="space-y-3">
+                        <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary/50 ml-1">Full Name</label>
+                        <div className="relative group">
+                          <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-primary/40 group-focus-within:text-primary transition-colors">person</span>
+                          <input
+                            id="name-input"
+                            type="text"
+                            placeholder="John Doe"
+                            className="w-full pl-12 pr-4 py-4 bg-surface border border-slate-300 rounded-2xl focus:border-secondary focus:bg-surface outline-none transition-all text-sm font-bold shadow-sm"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="space-y-3">
                         <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary/50 ml-1">Mobile Number</label>
                         <div className="relative group">
                           <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-primary/40 group-focus-within:text-primary transition-colors">call</span>
@@ -168,10 +181,12 @@ export default function LandingPage() {
                   <button
                     onClick={async () => {
                       const citySelect = document.getElementById('city-select') as HTMLSelectElement;
+                      const nameInput = document.getElementById('name-input') as HTMLInputElement;
                       const mobileInput = document.getElementById('mobile-input') as HTMLInputElement;
                       const typeSelect = document.getElementById('property-type') as HTMLSelectElement;
 
                       const selectedCity = citySelect?.value;
+                      const fullName = nameInput?.value || 'Interested User';
                       const mobile = mobileInput?.value;
 
                       if (mobile) {
@@ -180,7 +195,7 @@ export default function LandingPage() {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
-                              customerName: `Searcher (${mobile.slice(-4)})`,
+                              customerName: fullName,
                               phone: mobile,
                               requirementText: `Interested in ${typeSelect?.value || 'Any'} property in ${selectedCity || 'Tamil Nadu'}`,
                               propertyType: typeSelect?.value || 'Any',
