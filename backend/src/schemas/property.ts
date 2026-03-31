@@ -14,7 +14,7 @@ export const CreatePropertySchema = z.object({
   tags: z.preprocess((val) => (typeof val === 'string' ? val.split(',').map(t => t.trim()) : val), z.array(z.string())),
   featured: z.preprocess((val) => val === 'true' || val === true, z.boolean()).default(false),
   verified: z.preprocess((val) => val === 'true' || val === true, z.boolean()).default(false),
-  status: z.enum(['ACTIVE', 'HIDDEN', 'ARCHIVED', 'SOLD']).default('ACTIVE'),
+  status: z.enum(['ACTIVE', 'HIDDEN', 'ARCHIVED', 'SOLD', 'DRAFT']).default('ACTIVE'),
 });
 
 export const UpdatePropertySchema = CreatePropertySchema.partial();

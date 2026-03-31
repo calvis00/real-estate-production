@@ -4,6 +4,8 @@ import dotenv from 'dotenv';
 import cookieParser from 'cookie-parser';
 import propertyRoutes from './routes/property.js';
 import leadRoutes from './routes/lead.js';
+import contactRoutes from './routes/contact.js';
+import listingRequestRoutes from './routes/listingRequest.js';
 import authRoutes from './routes/auth.js';
 
 dotenv.config();
@@ -22,6 +24,8 @@ app.use(cookieParser());
 app.use('/api/auth', authRoutes);
 app.use('/api/properties', propertyRoutes);
 app.use('/api/leads', leadRoutes);
+app.use('/api/contacts', contactRoutes);
+app.use('/api/listing-requests', listingRequestRoutes);
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', message: 'Real Estate API is running' });

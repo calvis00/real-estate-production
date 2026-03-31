@@ -3,9 +3,12 @@
 import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useModal } from '@/context/ModalContext';
 
 export default function Navbar() {
   const pathname = usePathname();
+  const { openModal } = useModal();
+
   if (pathname.startsWith('/crm')) return null;
 
   return (
@@ -20,15 +23,27 @@ export default function Navbar() {
             <Link href="/properties" className="text-sm font-semibold hover:text-primary transition-colors">Properties</Link>
           </div>
         </div>
-        <div className="flex items-center gap-4">
-          <Link href="#" className="text-sm font-semibold hover:text-primary hidden lg:block">Help</Link>
-          <button className="px-5 py-2.5 bg-primary text-white rounded-full text-sm font-bold flex items-center gap-2 hover:bg-opacity-90 transition-all border border-secondary/30">
-            Post Property <span className="bg-secondary text-primary px-1.5 py-0.5 rounded text-[10px]">FREE</span>
+        <div className="flex items-center gap-6">
+          <button 
+            onClick={() => {
+              if (window.location.pathname !== '/') {
+                 window.location.href = '/#expert-advisory';
+              } else {
+                 document.getElementById('expert-advisory')?.scrollIntoView({ behavior: 'smooth' });
+              }
+            }}
+            className="text-sm font-semibold hover:text-primary hidden lg:block transition-all"
+          >
+            Contact
           </button>
-          <button className="p-2 rounded-full hover:bg-surface-container">
-            <span className="material-symbols-outlined">account_circle</span>
+          <button 
+            onClick={() => openModal('LISTING')}
+            className="px-5 py-2.5 bg-primary text-white rounded-full text-sm font-bold flex items-center gap-2 hover:bg-opacity-90 transition-all border border-secondary/30 active:scale-95 shadow-md"
+          >
+            List Property <span className="bg-secondary text-primary px-1.5 py-0.5 rounded text-[10px]">FREE</span>
           </button>
         </div>
+
       </div>
     </nav>
   );

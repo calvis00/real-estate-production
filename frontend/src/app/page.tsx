@@ -288,7 +288,7 @@ export default function LandingPage() {
         <div className="bg-primary/5 py-32">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             {/* Lead Advisory/Footer CTA */}
-            <section>
+            <section id="expert-advisory">
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
                 <div>
                   <h3 className="text-4xl font-extrabold font-headline text-primary mb-6">Expert Architectural Advisory</h3>

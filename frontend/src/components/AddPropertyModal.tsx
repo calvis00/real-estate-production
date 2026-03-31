@@ -101,7 +101,7 @@ export default function AddPropertyModal({ isOpen, onClose, onRefresh, initialDa
         setFiles(newFiles);
     };
 
-    const handleSubmit = async () => {
+    const handleSubmit = async (overrideStatus?: string) => {
         setIsPublishing(true);
         setError(null);
 
@@ -116,6 +116,13 @@ export default function AddPropertyModal({ isOpen, onClose, onRefresh, initialDa
                 data.append(key, formData[key]);
             }
         });
+
+        // Set status if provided (e.g. DRAFT)
+        if (overrideStatus) {
+            data.append('status', overrideStatus);
+        } else if (!initialData) {
+            data.append('status', 'ACTIVE'); // Default for new properties
+        }
 
         data.append('description', description);
         files.forEach(f => data.append('assets', f.file));
@@ -215,8 +222,20 @@ export default function AddPropertyModal({ isOpen, onClose, onRefresh, initialDa
                     {step === 'editor' && (
                         <div className="flex items-center gap-4">
                             <span className="text-[10px] font-bold text-outline uppercase tracking-widest opacity-40">Auto-saved</span>
+                            
+                            {!initialData && (
+                                <button 
+                                    onClick={() => handleSubmit('DRAFT')}
+                                    disabled={isPublishing}
+                                    className="px-6 py-2.5 rounded-full font-bold text-xs border border-surface-container hover:bg-surface-container transition-all flex items-center gap-2 text-outline hover:text-primary"
+                                >
+                                    <span className="material-symbols-outlined text-sm">archive</span>
+                                    Save as Draft
+                                </button>
+                            )}
+
                             <button 
-                                onClick={handleSubmit}
+                                onClick={() => handleSubmit()}
                                 disabled={isPublishing}
                                 className={`bg-primary text-white px-8 py-2.5 rounded-full font-bold text-sm shadow-xl hover:shadow-primary/20 transition-all flex items-center gap-2 ${isPublishing ? 'opacity-50 cursor-wait' : 'active:scale-95'}`}
                             >

@@ -8,6 +8,7 @@ export const metadata: Metadata = {
 };
 
 import Navbar from "@/components/Navbar";
+import GlobalModalProvider from "@/components/GlobalModalProvider";
 
 export default function RootLayout({
   children,
@@ -21,8 +22,10 @@ export default function RootLayout({
         <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
       </head>
       <body className="antialiased bg-background font-body text-on-surface">
-        <Navbar />
-        {children}
+        <GlobalModalProvider>
+          <Navbar />
+          {children}
+        </GlobalModalProvider>
       </body>
     </html>
   );

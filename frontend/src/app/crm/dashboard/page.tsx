@@ -6,20 +6,34 @@ import AddPropertyModal from '@/components/AddPropertyModal';
 
 export default function CRMDashboard() {
   const [leads, setLeads] = useState<any[]>([]);
+  const [contacts, setContacts] = useState<any[]>([]);
+  const [listingRequests, setListingRequests] = useState<any[]>([]);
   const [properties, setProperties] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'leads' | 'properties'>('leads');
+  const [activeTab, setActiveTab] = useState<'leads' | 'properties' | 'contacts' | 'listing_requests'>('leads');
   
   // Persistent Tab State
   useEffect(() => {
-    const savedTab = localStorage.getItem('crmActiveTab') as 'leads' | 'properties';
-    if (savedTab && (savedTab === 'leads' || savedTab === 'properties')) {
+    const savedTab = localStorage.getItem('crmActiveTab') as any;
+    const validTabs = ['leads', 'properties', 'contacts', 'listing_requests'];
+    if (savedTab && validTabs.includes(savedTab)) {
       setActiveTab(savedTab);
     }
   }, []);
 
   useEffect(() => {
     localStorage.setItem('crmActiveTab', activeTab);
+    
+    // Auto-set the source filter when switching to specialized tabs
+    if (activeTab === 'contacts') {
+      setSourceFilter('NAV_CONTACT');
+    } else if (activeTab === 'listing_requests') {
+      setSourceFilter('NAV_LISTING_REQUEST');
+    } else if (activeTab === 'leads') {
+      setSourceFilter('All');
+    }
+    
+    setStatusFilter('All'); // Reset filter on tab change
   }, [activeTab]);
 
   // Handle Click Outside to close menu
@@ -39,13 +53,16 @@ export default function CRMDashboard() {
   const [openPropertyMenuId, setOpenPropertyMenuId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('All');
+  const [sourceFilter, setSourceFilter] = useState('All');
   const [stats, setStats] = useState({ totalLeads: 0, totalProperties: 0, closed: 0 });
   const router = useRouter();
 
   const fetchData = async () => {
     try {
-      const [leadsRes, propsRes] = await Promise.all([
+      const [leadsRes, contactsRes, listingRes, propsRes] = await Promise.all([
         fetch('http://localhost:8081/api/leads', { credentials: 'include', cache: 'no-store' }),
+        fetch('http://localhost:8081/api/contacts', { credentials: 'include', cache: 'no-store' }),
+        fetch('http://localhost:8081/api/listing-requests', { credentials: 'include', cache: 'no-store' }),
         fetch('http://localhost:8081/api/properties', { cache: 'no-store' })
       ]);
 
@@ -55,12 +72,17 @@ export default function CRMDashboard() {
       }
 
       const leadsData = await leadsRes.json();
+      const contactsData = await contactsRes.json();
+      const listingData = await listingRes.json();
       const propsData = await propsRes.json();
 
       setLeads(leadsData.data || []);
+      setContacts(contactsData.data || []);
+      setListingRequests(listingData.data || []);
       setProperties(propsData.data || []);
+      
       setStats({
-        totalLeads: (leadsData.data || []).length,
+        totalLeads: (leadsData.data || []).length + (contactsData.data || []).length + (listingData.data || []).length,
         totalProperties: (propsData.data || []).length,
         closed: (leadsData.data || []).filter((l: any) => l.status === 'CLOSED').length
       });
@@ -81,14 +103,19 @@ export default function CRMDashboard() {
   };
 
   const deleteLead = async (id: string | number) => {
-    if (!window.confirm('Are you sure you want to delete this lead?')) return;
+    if (!window.confirm('Are you sure you want to delete this enquiry?')) return;
+    const endpoint = activeTab === 'contacts' ? 'contacts' : 
+                    activeTab === 'listing_requests' ? 'listing-requests' : 
+                    'leads';
     try {
-      const res = await fetch(`http://localhost:8081/api/leads/${id}`, {
+      const res = await fetch(`http://localhost:8081/api/${endpoint}/${id}`, {
         method: 'DELETE',
         credentials: 'include'
       });
       if (res.ok) {
-        setLeads(leads.filter(l => l.id !== id));
+        if (activeTab === 'leads') setLeads(leads.filter(l => l.id !== id));
+        if (activeTab === 'contacts') setContacts(contacts.filter(c => c.id !== id));
+        if (activeTab === 'listing_requests') setListingRequests(listingRequests.filter(r => r.id !== id));
       }
     } catch (err) {
       console.error('Delete failed:', err);
@@ -96,14 +123,19 @@ export default function CRMDashboard() {
   };
 
   const updateLeadField = async (id: string | number, field: string, value: any) => {
+    const endpoint = activeTab === 'contacts' ? 'contacts' : 
+                    activeTab === 'listing_requests' ? 'listing-requests' : 
+                    'leads';
     try {
-      await fetch(`http://localhost:8081/api/leads/${id}`, {
+      await fetch(`http://localhost:8081/api/${endpoint}/${id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ [field]: value }),
         credentials: 'include'
       });
-      setLeads(leads.map(l => l.id === id ? { ...l, [field]: value } : l));
+      if (activeTab === 'leads') setLeads(leads.map(l => l.id === id ? { ...l, [field]: value } : l));
+      if (activeTab === 'contacts') setContacts(contacts.map(c => c.id === id ? { ...c, [field]: value } : c));
+      if (activeTab === 'listing_requests') setListingRequests(listingRequests.map(r => r.id === id ? { ...r, [field]: value } : r));
     } catch (err) {
       console.error(`Update ${field} failed:`, err);
     }
@@ -173,11 +205,26 @@ export default function CRMDashboard() {
     a.click();
   };
 
-  const filteredLeads = leads.filter(l => {
-    const matchesSearch = (l.customerName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (l.phone || '').includes(searchTerm) ||
-      (l.requirementText || '').toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'All' || l.status === statusFilter;
+  const filteredLeads = (() => {
+    const dataSet = activeTab === 'contacts' ? contacts : 
+                    activeTab === 'listing_requests' ? listingRequests : 
+                    leads;
+    
+    return dataSet.filter(l => {
+      const matchesSearch = (l.customerName || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (l.phone || '').includes(searchTerm) ||
+        (l.requirementText || '').toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStatus = statusFilter === 'All' || l.status === statusFilter;
+      const matchesSource = sourceFilter === 'All' || l.source === sourceFilter;
+      return matchesSearch && matchesStatus && matchesSource;
+    });
+  })();
+
+  const filteredProperties = properties.filter(p => {
+    const matchesSearch = (p.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (p.locality || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (p.city || '').toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === 'All' || p.status === (statusFilter === 'Draft' ? 'DRAFT' : statusFilter.toUpperCase());
     return matchesSearch && matchesStatus;
   });
 
@@ -208,6 +255,18 @@ export default function CRMDashboard() {
                 className={`text-xs font-bold uppercase tracking-widest transition-all ${activeTab === 'leads' ? 'text-primary scale-110' : 'text-outline hover:text-primary'}`}
               >
                 Leads
+              </button>
+              <button
+                onClick={() => setActiveTab('contacts')}
+                className={`text-xs font-bold uppercase tracking-widest transition-all ${activeTab === 'contacts' ? 'text-primary scale-110' : 'text-outline hover:text-primary'}`}
+              >
+                Contacts
+              </button>
+              <button
+                onClick={() => setActiveTab('listing_requests')}
+                className={`text-xs font-bold uppercase tracking-widest transition-all ${activeTab === 'listing_requests' ? 'text-primary scale-110' : 'text-outline hover:text-primary'}`}
+              >
+                Listing Requests
               </button>
               <button
                 onClick={() => setActiveTab('properties')}
@@ -248,19 +307,22 @@ export default function CRMDashboard() {
         <div className="bg-surface rounded-[2.5rem] overflow-hidden border border-surface-container shadow-lg">
           <div className="p-8 border-b border-surface-container flex flex-col md:flex-row justify-between items-center gap-6 bg-surface/30">
             <h3 className="text-2xl font-extrabold font-headline text-primary">
-              {activeTab === 'leads' ? 'Recent Enquiries' : 'Property Inventory'}
+              {activeTab === 'leads' ? 'General Enquiries' : 
+               activeTab === 'contacts' ? 'Contact Enquiries' :
+               activeTab === 'listing_requests' ? 'Property Listing Requests' :
+               'Property Inventory'}
             </h3>
             <div className="flex gap-3 w-full md:w-auto">
               <div className="relative flex-1 md:w-72">
                 <span className="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-primary/40 text-sm">search</span>
                 <input
-                  placeholder={`Search ${activeTab}...`}
+                  placeholder={`Search ${activeTab === 'properties' ? 'Properties' : 'Leads'}...`}
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="bg-surface border border-surface-container rounded-xl py-3 pl-10 pr-4 text-xs w-full focus:outline-none focus:border-primary transition-all shadow-inner bg-white/50"
                 />
               </div>
-              {activeTab === 'leads' && (
+              {activeTab !== 'properties' ? (
                 <>
                   <select
                     value={statusFilter}
@@ -274,6 +336,17 @@ export default function CRMDashboard() {
                     <option value="NEED_TO_RECALL">Call Again</option>
                     <option value="CLOSED">Closed</option>
                   </select>
+                  <select
+                    value={sourceFilter}
+                    onChange={(e) => setSourceFilter(e.target.value)}
+                    className="bg-surface border border-surface-container rounded-xl px-4 py-3 text-xs font-bold focus:outline-none transition-all border-dashed border-primary/40 ring-1 ring-primary/5"
+                  >
+                    <option value="All">All Sources</option>
+                    <option value="NAV_CONTACT">Web Contact</option>
+                    <option value="NAV_LISTING_REQUEST">Web Listing</option>
+                    <option value="WEBSITE">Direct (Legacy)</option>
+                    <option value="PHONE">Phone Lead</option>
+                  </select>
                   <button
                     onClick={exportLeads}
                     className="bg-surface border border-surface-container text-primary px-6 py-3 rounded-xl font-bold text-xs flex items-center gap-2 hover:bg-surface-container/50 transition-all shadow-sm"
@@ -282,21 +355,33 @@ export default function CRMDashboard() {
                     Export
                   </button>
                 </>
-              )}
-              {activeTab === 'properties' && (
-                <button
-                  onClick={() => { setSelectedProperty(null); setIsModalOpen(true); }}
-                  className="bg-primary text-white px-6 py-3 rounded-xl font-bold text-xs flex items-center gap-2 hover:bg-opacity-95 transition-all shadow-lg active:scale-95"
-                >
-                  <span className="material-symbols-outlined text-sm">add_circle</span>
-                  Add Property
-                </button>
+              ) : (
+                <>
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="bg-surface border border-surface-container rounded-xl px-4 py-3 text-xs font-bold focus:outline-none"
+                  >
+                    <option value="All">All Status</option>
+                    <option value="Active">Active</option>
+                    <option value="Sold">Sold</option>
+                    <option value="Hidden">Hidden</option>
+                    <option value="Draft">Draft</option>
+                  </select>
+                  <button
+                    onClick={() => { setSelectedProperty(null); setIsModalOpen(true); }}
+                    className="bg-primary text-white px-6 py-3 rounded-xl font-bold text-xs flex items-center gap-2 hover:bg-opacity-95 transition-all shadow-lg active:scale-95"
+                  >
+                    <span className="material-symbols-outlined text-sm">add_circle</span>
+                    Add Property
+                  </button>
+                </>
               )}
             </div>
           </div>
 
           <div className="overflow-x-auto">
-            {activeTab === 'leads' ? (
+            {activeTab !== 'properties' ? (
               /*
                * LEADS TABLE
                * Total = 100%
@@ -349,21 +434,24 @@ export default function CRMDashboard() {
                           {l.phone}
                         </td>
 
-                        {/* Source — NEW COLUMN */}
+                        {/* Source — IMPROVED */}
                         <td className="px-2 py-3 border border-surface-container text-center">
                           <select
                             value={l.source || ''}
                             onChange={(e) => updateLeadField(l.id, 'source', e.target.value)}
-                            className="text-xs font-bold w-full px-1 py-1 rounded-lg uppercase tracking-tight bg-surface-container/20 border-none focus:ring-0 cursor-pointer text-outline"
+                            className={`text-[10px] font-black w-full px-1 py-1 rounded-lg uppercase tracking-tight bg-surface-container/20 border-none focus:ring-0 cursor-pointer ${
+                              l.source === 'NAV_CONTACT' ? 'text-indigo-600 bg-indigo-50' :
+                              l.source === 'NAV_LISTING_REQUEST' ? 'text-emerald-500 bg-emerald-50' :
+                              'text-outline'
+                            }`}
                           >
                             <option value="">—</option>
+                            <option value="NAV_CONTACT">Web Contact</option>
+                            <option value="NAV_LISTING_REQUEST">Web Listing</option>
                             <option value="WALK_IN">Walk-in</option>
                             <option value="PHONE">Phone</option>
+                            <option value="WEBSITE">Direct</option>
                             <option value="REFERRAL">Referral</option>
-                            <option value="WEBSITE">Website</option>
-                            <option value="SOCIAL">Social</option>
-                            <option value="PORTAL">Portal</option>
-                            <option value="OTHER">Other</option>
                           </select>
                         </td>
 
@@ -508,7 +596,7 @@ export default function CRMDashboard() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-surface-container">
-                  {properties.map((p: any) => (
+                  {filteredProperties.map((p: any) => (
                     <tr key={p.id} className="hover:bg-surface transition-colors">
                       <td className="px-8 py-5 border border-surface-container">
                         <div className="flex items-center gap-4">
@@ -545,6 +633,7 @@ export default function CRMDashboard() {
                         <span className={`px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest ${
                             p.status === 'ACTIVE' ? 'bg-green-50 text-green-600 border border-green-200' : 
                             p.status === 'SOLD' ? 'bg-blue-50 text-blue-600 border border-blue-200' :
+                            p.status === 'DRAFT' ? 'bg-slate-100 text-slate-500 border border-slate-300' :
                             'bg-red-50 text-red-500 border border-red-200'
                         }`}>
                           {p.status || 'ACTIVE'}
