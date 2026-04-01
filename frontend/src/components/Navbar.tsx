@@ -11,6 +11,7 @@ export default function Navbar() {
   const pathname = usePathname();
   const { openModal } = useModal();
   const { t } = useLang();
+  const advisorySectionId = 'planning-home';
 
   if (pathname.startsWith('/crm')) return null;
 
@@ -29,22 +30,22 @@ export default function Navbar() {
         <div className="flex items-center gap-6">
           <LangToggle />
           <button 
+            onClick={() => openModal('LISTING')}
+            className="px-5 py-2.5 bg-primary text-white rounded-full text-sm font-bold flex items-center gap-2 hover:bg-opacity-90 transition-all border border-secondary/30 active:scale-95 shadow-md"
+          >
+            List Property <span className="bg-secondary text-primary px-1.5 py-0.5 rounded text-[10px]">FREE</span>
+          </button>
+          <button 
             onClick={() => {
               if (window.location.pathname !== '/') {
-                 window.location.href = '/#expert-advisory';
+                 window.location.href = `/#${advisorySectionId}`;
               } else {
-                 document.getElementById('expert-advisory')?.scrollIntoView({ behavior: 'smooth' });
+                 document.getElementById(advisorySectionId)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
               }
             }}
             className="text-sm font-semibold hover:text-primary hidden lg:block transition-all"
           >
             {t('nav_contact')}
-          </button>
-          <button 
-            onClick={() => openModal('LISTING')}
-            className="px-5 py-2.5 bg-primary text-white rounded-full text-sm font-bold flex items-center gap-2 hover:bg-opacity-90 transition-all border border-secondary/30 active:scale-95 shadow-md"
-          >
-            List Property <span className="bg-secondary text-primary px-1.5 py-0.5 rounded text-[10px]">FREE</span>
           </button>
         </div>
 

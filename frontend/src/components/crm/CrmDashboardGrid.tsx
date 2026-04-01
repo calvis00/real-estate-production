@@ -16,7 +16,9 @@ import { apiUrl, withCsrfHeader } from '@/utils/api';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
-type ActiveTab = 'leads' | 'properties' | 'contacts' | 'listing_requests';
+type ActiveTab = 'leads' | 'properties' | 'contacts' | 'listing_requests' | 'action_queue';
+type NewIndicatorMap = Record<ActiveTab, number>;
+type LastSeenMap = Record<ActiveTab, string>;
 
 const crmStatusOptions = ['NEW', 'CONTACTED', 'IN_PROGRESS', 'NEED_TO_RECALL', 'CLOSED'];
 const crmPriorityOptions = ['LOW', 'MEDIUM', 'HIGH'];
@@ -96,6 +98,78 @@ function getFollowUpState(value?: string | null) {
   if (target.getTime() < today.getTime()) return 'overdue';
   if (target.getTime() === today.getTime()) return 'today';
   return 'upcoming';
+}
+
+function getDateMs(value?: string | null) {
+  if (!value) return 0;
+  const ms = new Date(value).getTime();
+  return Number.isNaN(ms) ? 0 : ms;
+}
+
+function getLatestCreatedAt(rows: any[]) {
+  let latest = 0;
+  rows.forEach((row) => {
+    const ms = getDateMs(row.createdAt);
+    if (ms > latest) latest = ms;
+  });
+  return latest ? new Date(latest).toISOString() : '';
+}
+
+function countNewRows(rows: any[], lastSeenIso: string) {
+  const lastSeenMs = getDateMs(lastSeenIso);
+  if (!lastSeenMs) return 0;
+  return rows.filter((row) => getDateMs(row.createdAt) > lastSeenMs).length;
+}
+
+function getQueueEntryMs(row: any) {
+  return Math.max(getDateMs(row.updatedAt), getDateMs(row.createdAt), getDateMs(row.nextFollowUpDate));
+}
+
+function getActionQueueRows(
+  leads: any[],
+  contacts: any[],
+  listingRequests: any[],
+  properties: any[],
+) {
+  const reminderRows = [...leads, ...contacts, ...listingRequests]
+    .filter((row) => row.nextFollowUpDate)
+    .map((row) => ({
+      ...row,
+      followUpState: getFollowUpState(row.nextFollowUpDate),
+      followUpDateLabel: formatDate(row.nextFollowUpDate),
+    }))
+    .filter((row) => row.followUpState === 'overdue' || row.followUpState === 'today');
+
+  const propertyAttentionRows = properties.filter((property) => property.status === 'DRAFT' || property.status === 'HIDDEN');
+  return [...reminderRows, ...propertyAttentionRows];
+}
+
+function getLatestActionQueueSeenAt(
+  leads: any[],
+  contacts: any[],
+  listingRequests: any[],
+  properties: any[],
+) {
+  const rows = getActionQueueRows(leads, contacts, listingRequests, properties);
+  let latest = 0;
+  rows.forEach((row) => {
+    const ms = getQueueEntryMs(row);
+    if (ms > latest) latest = ms;
+  });
+  return latest ? new Date(latest).toISOString() : '';
+}
+
+function countNewActionQueueRows(
+  leads: any[],
+  contacts: any[],
+  listingRequests: any[],
+  properties: any[],
+  lastSeenIso: string,
+) {
+  const lastSeenMs = getDateMs(lastSeenIso);
+  if (!lastSeenMs) return 0;
+  const rows = getActionQueueRows(leads, contacts, listingRequests, properties);
+  return rows.filter((row) => getQueueEntryMs(row) > lastSeenMs).length;
 }
 
 function CrmActionCell({
@@ -222,12 +296,36 @@ export default function CrmDashboardGrid() {
   const [statusFilter, setStatusFilter] = useState('All');
   const [sourceFilter, setSourceFilter] = useState('All');
   const [stats, setStats] = useState({ totalLeads: 0, totalProperties: 0, closed: 0 });
+  const [lastSeenByTab, setLastSeenByTab] = useState<LastSeenMap>({
+    action_queue: '',
+    leads: '',
+    contacts: '',
+    listing_requests: '',
+    properties: '',
+  });
+  const [newByTab, setNewByTab] = useState<NewIndicatorMap>({
+    action_queue: 0,
+    leads: 0,
+    contacts: 0,
+    listing_requests: 0,
+    properties: 0,
+  });
   const router = useRouter();
 
   useEffect(() => {
     const savedTab = localStorage.getItem('crmActiveTab') as ActiveTab | null;
-    if (savedTab && ['leads', 'properties', 'contacts', 'listing_requests'].includes(savedTab)) {
+    if (savedTab && ['action_queue', 'leads', 'properties', 'contacts', 'listing_requests'].includes(savedTab)) {
       setActiveTab(savedTab);
+    }
+
+    const rawSeen = localStorage.getItem('crmLastSeenByTab');
+    if (rawSeen) {
+      try {
+        const parsed = JSON.parse(rawSeen) as Partial<LastSeenMap>;
+        setLastSeenByTab((current) => ({ ...current, ...parsed }));
+      } catch {
+        // Ignore malformed localStorage value.
+      }
     }
   }, []);
 
@@ -237,6 +335,11 @@ export default function CrmDashboardGrid() {
     setSourceFilter('All');
     setSearchTerm('');
   }, [activeTab]);
+
+  function persistLastSeen(nextState: LastSeenMap) {
+    setLastSeenByTab(nextState);
+    localStorage.setItem('crmLastSeenByTab', JSON.stringify(nextState));
+  }
 
   async function fetchData() {
     try {
@@ -276,6 +379,74 @@ export default function CrmDashboardGrid() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    if (loading) return;
+
+    const initializedState: LastSeenMap = { ...lastSeenByTab };
+    let changed = false;
+
+    ([
+      ['action_queue', []],
+      ['leads', leads],
+      ['contacts', contacts],
+      ['listing_requests', listingRequests],
+      ['properties', properties],
+    ] as Array<[ActiveTab, any[]]>).forEach(([key, rows]) => {
+      if (!initializedState[key]) {
+        initializedState[key] =
+          key === 'action_queue'
+            ? getLatestActionQueueSeenAt(leads, contacts, listingRequests, properties)
+            : getLatestCreatedAt(rows);
+        changed = true;
+      }
+    });
+
+    if (changed) {
+      persistLastSeen(initializedState);
+    }
+  }, [loading, leads, contacts, listingRequests, properties]);
+
+  useEffect(() => {
+    if (loading) return;
+
+    setNewByTab({
+      action_queue: countNewActionQueueRows(leads, contacts, listingRequests, properties, lastSeenByTab.action_queue),
+      leads: countNewRows(leads, lastSeenByTab.leads),
+      contacts: countNewRows(contacts, lastSeenByTab.contacts),
+      listing_requests: countNewRows(listingRequests, lastSeenByTab.listing_requests),
+      properties: countNewRows(properties, lastSeenByTab.properties),
+    });
+  }, [loading, leads, contacts, listingRequests, properties, lastSeenByTab]);
+
+  useEffect(() => {
+    if (loading) return;
+
+    const sourceRows =
+      activeTab === 'action_queue'
+        ? []
+        : activeTab === 'leads'
+        ? leads
+        : activeTab === 'contacts'
+          ? contacts
+          : activeTab === 'listing_requests'
+            ? listingRequests
+            : properties;
+
+    const latest =
+      activeTab === 'action_queue'
+        ? getLatestActionQueueSeenAt(leads, contacts, listingRequests, properties)
+        : getLatestCreatedAt(sourceRows);
+    if (!latest) return;
+
+    if (lastSeenByTab[activeTab] === latest) return;
+
+    const nextState: LastSeenMap = {
+      ...lastSeenByTab,
+      [activeTab]: latest,
+    };
+    persistLastSeen(nextState);
+  }, [activeTab, loading, leads, contacts, listingRequests, properties]);
 
   async function handleLogout() {
     await fetch(apiUrl('/api/auth/logout'), {
@@ -513,6 +684,12 @@ export default function CrmDashboardGrid() {
 
   const overdueFollowUps = reminderRows.filter((row) => row.followUpState === 'overdue');
   const todayFollowUps = reminderRows.filter((row) => row.followUpState === 'today');
+  const leadReminders = reminderRows.filter((row) => row.source !== 'NAV_CONTACT' && row.source !== 'NAV_LISTING_REQUEST');
+  const contactReminders = reminderRows.filter((row) => row.source === 'NAV_CONTACT');
+  const listingReminders = reminderRows.filter((row) => row.source === 'NAV_LISTING_REQUEST');
+  const propertyAttentionRows = properties
+    .filter((property) => property.status === 'DRAFT' || property.status === 'HIDDEN')
+    .sort((a, b) => getDateMs(b.updatedAt) - getDateMs(a.updatedAt));
 
   const defaultColDef: ColDef = {
     editable: false,
@@ -689,7 +866,9 @@ export default function CrmDashboardGrid() {
   ];
 
   const title =
-    activeTab === 'leads'
+    activeTab === 'action_queue'
+      ? 'Action Queue'
+      : activeTab === 'leads'
       ? 'General Enquiries'
       : activeTab === 'contacts'
         ? 'Contact Enquiries'
@@ -734,6 +913,7 @@ export default function CrmDashboardGrid() {
             <div className="h-6 w-px bg-surface-container" />
             <div className="flex flex-wrap items-center gap-4">
               {[
+                ['action_queue', 'Action Queue'],
                 ['leads', 'Leads'],
                 ['contacts', 'Contacts'],
                 ['listing_requests', 'Listing Requests'],
@@ -742,11 +922,16 @@ export default function CrmDashboardGrid() {
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab as ActiveTab)}
-                  className={`rounded-full px-4 py-2 text-xs font-bold uppercase tracking-widest transition ${
+                  className={`relative rounded-full px-4 py-2 text-xs font-bold uppercase tracking-widest transition ${
                     activeTab === tab ? 'bg-primary text-white shadow-lg' : 'text-outline hover:text-primary'
                   }`}
                 >
                   {label}
+                  {newByTab[tab as ActiveTab] > 0 && (
+                    <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-rose-500 ring-2 ring-surface">
+                      <span className="sr-only">{newByTab[tab as ActiveTab]} new records</span>
+                    </span>
+                  )}
                 </button>
               ))}
             </div>
@@ -762,187 +947,214 @@ export default function CrmDashboardGrid() {
       </div>
 
       <main className="space-y-8 px-8 py-8">
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
-          {[
-            { label: 'Total Leads', value: stats.totalLeads, icon: 'groups' },
-            { label: 'Active Properties', value: stats.totalProperties, icon: 'home_work' },
-            { label: 'Closed Deals', value: stats.closed, icon: 'verified' },
-          ].map((item) => (
-            <div key={item.label} className="rounded-[2rem] border border-surface-container bg-surface p-6 shadow-sm">
-              <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/5 text-primary">
-                <span className="material-symbols-outlined text-xl">{item.icon}</span>
+        {activeTab === 'action_queue' ? (
+          <>
+            <div className="rounded-[2rem] border border-surface-container bg-surface p-6 shadow-sm">
+              <div className="mb-5 flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-outline">Follow Up Reminders</p>
+                  <h3 className="mt-1 text-2xl font-extrabold font-headline text-primary">Action Queue</h3>
+                </div>
+                <div className="flex gap-3 text-xs font-bold uppercase tracking-widest">
+                  <span className="rounded-full bg-rose-100 px-3 py-2 text-rose-700">{overdueFollowUps.length} Overdue</span>
+                  <span className="rounded-full bg-amber-100 px-3 py-2 text-amber-700">{todayFollowUps.length} Today</span>
+                </div>
               </div>
-              <p className="mb-1 text-[9px] font-bold uppercase tracking-[0.2em] text-outline">{item.label}</p>
-              <h3 className="text-3xl font-extrabold font-headline text-primary">{item.value}</h3>
-            </div>
-          ))}
-        </div>
 
-        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.2fr,0.8fr]">
-          <div className="rounded-[2rem] border border-surface-container bg-surface p-6 shadow-sm">
-            <div className="mb-4 flex items-center justify-between gap-4">
-              <div>
-                <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-outline">Follow Up Reminders</p>
-                <h3 className="mt-1 text-2xl font-extrabold font-headline text-primary">Action Queue</h3>
-              </div>
-              <div className="flex gap-3 text-xs font-bold uppercase tracking-widest">
-                <span className="rounded-full bg-rose-100 px-3 py-2 text-rose-700">{overdueFollowUps.length} Overdue</span>
-                <span className="rounded-full bg-amber-100 px-3 py-2 text-amber-700">{todayFollowUps.length} Today</span>
-              </div>
-            </div>
-
-            {reminderRows.length ? (
-              <div className="space-y-3">
-                {reminderRows.slice(0, 6).map((row) => (
+              <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+                {[
+                  ['Leads', leadReminders, 'leads'],
+                  ['Contacts', contactReminders, 'contacts'],
+                  ['Listing Requests', listingReminders, 'listing_requests'],
+                  ['Properties', propertyAttentionRows, 'properties'],
+                ].map(([label, rows, tabKey]) => (
                   <div
-                    key={`${row.source}-${row.id}`}
-                    className="flex flex-col gap-2 rounded-2xl border border-surface-container bg-background/60 p-4 md:flex-row md:items-center md:justify-between"
+                    key={String(tabKey)}
+                    className="rounded-2xl border border-surface-container bg-background/60 p-4 text-left"
                   >
-                    <div>
-                      <p className="text-sm font-bold text-primary">{row.customerName}</p>
-                      <p className="text-xs text-outline">
-                        {row.phone} {row.preferredLocation ? `• ${row.preferredLocation}` : ''}
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs font-bold uppercase tracking-widest text-outline">{row.followUpDateLabel}</span>
-                      <span
-                        className={`rounded-full px-3 py-2 text-[10px] font-bold uppercase tracking-wider ${
-                          row.followUpState === 'overdue'
-                            ? 'bg-rose-100 text-rose-700'
-                            : 'bg-amber-100 text-amber-700'
-                        }`}
-                      >
-                        {row.followUpState}
+                    <div className="mb-3 flex items-center justify-between">
+                      <p className="text-xs font-bold uppercase tracking-widest text-primary">{label}</p>
+                      <span className="rounded-full bg-primary/10 px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-primary">
+                        {(rows as any[]).length}
                       </span>
                     </div>
+                    {(rows as any[]).length ? (
+                      <div className="space-y-2">
+                        {(rows as any[]).slice(0, 6).map((row: any) => (
+                          <div key={`${tabKey}-${row.id}`} className="rounded-xl border border-surface-container bg-surface px-3 py-2">
+                            <p className="truncate text-sm font-bold text-primary">{row.customerName || row.title}</p>
+                            <p className="text-[11px] text-outline">
+                              {row.followUpDateLabel ? `Follow-up: ${row.followUpDateLabel}` : `Status: ${row.status || 'Pending'}`}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-outline">No pending items in this queue.</p>
+                    )}
+                    <button
+                      onClick={() => setActiveTab(tabKey as ActiveTab)}
+                      className="mt-3 rounded-lg border border-surface-container px-3 py-2 text-[10px] font-bold uppercase tracking-wider text-primary transition hover:bg-white"
+                    >
+                      Open {label}
+                    </button>
                   </div>
                 ))}
               </div>
-            ) : (
-              <div className="rounded-2xl border border-dashed border-surface-container p-6 text-sm text-outline">
-                No overdue or due-today follow ups yet. Set a follow-up date in the grid and it will appear here.
-              </div>
-            )}
-          </div>
-
-          <div className="rounded-[2rem] border border-surface-container bg-surface p-6 shadow-sm">
-            <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-outline">Reminder Notes</p>
-            <h3 className="mt-1 text-2xl font-extrabold font-headline text-primary">How It Works</h3>
-            <p className="mt-4 text-sm leading-6 text-outline">
-              The follow-up column is now a real date field. When a date becomes due today or slips past due,
-              it appears in the reminder queue so the sales team can act on it quickly.
-            </p>
-          </div>
-        </div>
-
-        <div className="overflow-hidden rounded-[2.5rem] border border-surface-container bg-surface shadow-lg">
-          <div className="flex flex-col gap-4 border-b border-surface-container bg-surface/40 p-6 xl:flex-row xl:items-center xl:justify-between">
-            <div>
-              <h3 className="text-2xl font-extrabold font-headline text-primary">{title}</h3>
-              <p className="mt-1 text-sm text-outline">
-                AG Grid local implementation with inline editing, sorting, filtering, and CRM actions.
-              </p>
             </div>
 
-            <div className="flex flex-col gap-3 md:flex-row">
-              <input
-                value={searchTerm}
-                onChange={(event) => setSearchTerm(event.target.value)}
-                placeholder={`Search ${activeTab === 'properties' ? 'properties' : 'CRM records'}...`}
-                className="min-w-72 rounded-xl border border-surface-container bg-white/70 px-4 py-3 text-sm outline-none transition focus:border-primary"
-              />
-
-              <select
-                value={statusFilter}
-                onChange={(event) => setStatusFilter(event.target.value)}
-                className="rounded-xl border border-surface-container bg-white/70 px-4 py-3 text-sm font-bold outline-none"
-              >
-                <option value="All">All Status</option>
-                {(activeTab === 'properties' ? propertyStatusOptions : crmStatusOptions).map((value) => (
-                  <option key={value} value={activeTab === 'properties' ? value.charAt(0) + value.slice(1).toLowerCase() : value}>
-                    {value}
-                  </option>
+            <div className="rounded-[2rem] border border-surface-container bg-surface p-6 shadow-sm">
+              <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-outline">New Data Monitor</p>
+              <h3 className="mt-1 text-2xl font-extrabold font-headline text-primary">Live Indicators</h3>
+              <div className="mt-5 grid grid-cols-1 gap-3 md:grid-cols-2">
+                {[
+                  ['Action Queue', newByTab.action_queue],
+                  ['Leads', newByTab.leads],
+                  ['Contacts', newByTab.contacts],
+                  ['Listing Requests', newByTab.listing_requests],
+                  ['Properties', newByTab.properties],
+                ].map(([label, count]) => (
+                  <div key={String(label)} className="flex items-center justify-between rounded-xl border border-surface-container px-4 py-3">
+                    <p className="text-xs font-bold uppercase tracking-widest text-primary">{label}</p>
+                    <span
+                      className={`rounded-full px-2 py-1 text-[10px] font-black uppercase tracking-widest ${
+                        Number(count) > 0 ? 'bg-rose-100 text-rose-700' : 'bg-emerald-100 text-emerald-700'
+                      }`}
+                    >
+                      {Number(count) > 0 ? `${count} New` : 'Up To Date'}
+                    </span>
+                  </div>
                 ))}
-              </select>
-
-              {activeTab !== 'properties' && (
-                <select
-                  value={sourceFilter}
-                  onChange={(event) => setSourceFilter(event.target.value)}
-                  className="rounded-xl border border-surface-container bg-white/70 px-4 py-3 text-sm font-bold outline-none"
-                >
-                  <option value="All">All Sources</option>
-                  {crmSourceOptions.map((source) => (
-                    <option key={source} value={source}>
-                      {source}
-                    </option>
-                  ))}
-                </select>
-              )}
-
-              {activeTab !== 'properties' ? (
-                <button
-                  onClick={exportLeads}
-                  className="rounded-xl border border-surface-container bg-white px-4 py-3 text-sm font-bold text-primary transition hover:bg-surface-container/30"
-                >
-                  Export CSV
-                </button>
-              ) : (
-                <>
-                  <button
-                    onClick={exportProperties}
-                    className="rounded-xl border border-surface-container bg-white px-4 py-3 text-sm font-bold text-primary transition hover:bg-surface-container/30"
-                  >
-                    Export CSV
-                  </button>
-                  <button
-                    onClick={() => {
-                      setSelectedProperty(null);
-                      setIsModalOpen(true);
-                    }}
-                    className="rounded-xl bg-primary px-4 py-3 text-sm font-bold text-white transition hover:bg-primary/90"
-                  >
-                    Add Property
-                  </button>
-                </>
-              )}
-            </div>
-          </div>
-
-          <div className="p-6">
-            <div className="overflow-hidden rounded-[1.75rem] border border-surface-container">
-              <div style={{ height: 680, width: '100%' }}>
-                {activeTab === 'properties' ? (
-                  <AgGridReact
-                    columnDefs={propertyColumnDefs}
-                    defaultColDef={defaultColDef}
-                    onCellValueChanged={handlePropertyCellValueChanged}
-                    pagination
-                    paginationPageSize={12}
-                    quickFilterText={searchTerm}
-                    rowData={filteredProperties}
-                    rowHeight={56}
-                    theme={quartzTheme}
-                  />
-                ) : (
-                  <AgGridReact
-                    columnDefs={crmColumnDefs}
-                    defaultColDef={defaultColDef}
-                    onCellValueChanged={handleCrmCellValueChanged}
-                    pagination
-                    paginationPageSize={12}
-                    quickFilterText={searchTerm}
-                    rowData={filteredCrmRows}
-                    rowHeight={64}
-                    singleClickEdit
-                    theme={quartzTheme}
-                  />
-                )}
               </div>
             </div>
-          </div>
-        </div>
+          </>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+              {[
+                { label: 'Total Leads', value: stats.totalLeads, icon: 'groups' },
+                { label: 'Active Properties', value: stats.totalProperties, icon: 'home_work' },
+                { label: 'Closed Deals', value: stats.closed, icon: 'verified' },
+              ].map((item) => (
+                <div key={item.label} className="rounded-[2rem] border border-surface-container bg-surface p-6 shadow-sm">
+                  <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-primary/5 text-primary">
+                    <span className="material-symbols-outlined text-xl">{item.icon}</span>
+                  </div>
+                  <p className="mb-1 text-[9px] font-bold uppercase tracking-[0.2em] text-outline">{item.label}</p>
+                  <h3 className="text-3xl font-extrabold font-headline text-primary">{item.value}</h3>
+                </div>
+              ))}
+            </div>
+
+            <div className="overflow-hidden rounded-[2.5rem] border border-surface-container bg-surface shadow-lg">
+              <div className="flex flex-col gap-4 border-b border-surface-container bg-surface/40 p-6 xl:flex-row xl:items-center xl:justify-between">
+                <div>
+                  <h3 className="text-2xl font-extrabold font-headline text-primary">{title}</h3>
+                  <p className="mt-1 text-sm text-outline">
+                    AG Grid local implementation with inline editing, sorting, filtering, and CRM actions.
+                  </p>
+                </div>
+
+                <div className="flex flex-col gap-3 md:flex-row">
+                  <input
+                    value={searchTerm}
+                    onChange={(event) => setSearchTerm(event.target.value)}
+                    placeholder={`Search ${activeTab === 'properties' ? 'properties' : 'CRM records'}...`}
+                    className="min-w-72 rounded-xl border border-surface-container bg-white/70 px-4 py-3 text-sm outline-none transition focus:border-primary"
+                  />
+
+                  <select
+                    value={statusFilter}
+                    onChange={(event) => setStatusFilter(event.target.value)}
+                    className="rounded-xl border border-surface-container bg-white/70 px-4 py-3 text-sm font-bold outline-none"
+                  >
+                    <option value="All">All Status</option>
+                    {(activeTab === 'properties' ? propertyStatusOptions : crmStatusOptions).map((value) => (
+                      <option key={value} value={activeTab === 'properties' ? value.charAt(0) + value.slice(1).toLowerCase() : value}>
+                        {value}
+                      </option>
+                    ))}
+                  </select>
+
+                  {activeTab !== 'properties' && (
+                    <select
+                      value={sourceFilter}
+                      onChange={(event) => setSourceFilter(event.target.value)}
+                      className="rounded-xl border border-surface-container bg-white/70 px-4 py-3 text-sm font-bold outline-none"
+                    >
+                      <option value="All">All Sources</option>
+                      {crmSourceOptions.map((source) => (
+                        <option key={source} value={source}>
+                          {source}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+
+                  {activeTab !== 'properties' ? (
+                    <button
+                      onClick={exportLeads}
+                      className="rounded-xl border border-surface-container bg-white px-4 py-3 text-sm font-bold text-primary transition hover:bg-surface-container/30"
+                    >
+                      Export CSV
+                    </button>
+                  ) : (
+                    <>
+                      <button
+                        onClick={exportProperties}
+                        className="rounded-xl border border-surface-container bg-white px-4 py-3 text-sm font-bold text-primary transition hover:bg-surface-container/30"
+                      >
+                        Export CSV
+                      </button>
+                      <button
+                        onClick={() => {
+                          setSelectedProperty(null);
+                          setIsModalOpen(true);
+                        }}
+                        className="rounded-xl bg-primary px-4 py-3 text-sm font-bold text-white transition hover:bg-primary/90"
+                      >
+                        Add Property
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <div className="p-6">
+                <div className="overflow-hidden rounded-[1.75rem] border border-surface-container">
+                  <div style={{ height: 680, width: '100%' }}>
+                    {activeTab === 'properties' ? (
+                      <AgGridReact
+                        columnDefs={propertyColumnDefs}
+                        defaultColDef={defaultColDef}
+                        onCellValueChanged={handlePropertyCellValueChanged}
+                        pagination
+                        paginationPageSize={12}
+                        quickFilterText={searchTerm}
+                        rowData={filteredProperties}
+                        rowHeight={56}
+                        theme={quartzTheme}
+                      />
+                    ) : (
+                      <AgGridReact
+                        columnDefs={crmColumnDefs}
+                        defaultColDef={defaultColDef}
+                        onCellValueChanged={handleCrmCellValueChanged}
+                        pagination
+                        paginationPageSize={12}
+                        quickFilterText={searchTerm}
+                        rowData={filteredCrmRows}
+                        rowHeight={64}
+                        singleClickEdit
+                        theme={quartzTheme}
+                      />
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
       </main>
 
       <AddPropertyModal

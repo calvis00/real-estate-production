@@ -152,9 +152,11 @@ export default function LandingPage() {
                       </div>
                     </div>
 
-                    <div className="space-y-6">
-                      <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary/50 ml-1">{t('field_budget')}</label>
-                      <BudgetSlider onChange={(min: number, max: number) => { setMinBudget(min); setMaxBudget(max); }} />
+                    <div className="space-y-6 md:col-span-2 mt-2 flex flex-col items-center">
+                      <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary/50 text-center">{t('field_budget')}</label>
+                      <div className="w-full max-w-[640px]">
+                        <BudgetSlider onChange={(min: number, max: number) => { setMinBudget(min); setMaxBudget(max); }} />
+                      </div>
                     </div>
                   </>)}
                 </div>
@@ -290,7 +292,7 @@ export default function LandingPage() {
         </section>
 
         {/* ── Advisory ── */}
-        <div className="bg-primary/5 py-32 rounded-[3rem]">
+        <div id="planning-home" className="bg-primary/5 py-32 rounded-[3rem]">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
               <div>

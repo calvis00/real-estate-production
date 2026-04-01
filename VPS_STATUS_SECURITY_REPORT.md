@@ -1,6 +1,7 @@
 # VPS Status and Security Report
 
 Generated on: 2026-04-01
+Last deployment update: 2026-04-01T13:35Z
 
 ## 1. Deployment Summary
 
@@ -12,6 +13,8 @@ Generated on: 2026-04-01
 - Reverse proxy: `nginx`
 - Process manager: `pm2`
 - Database: `PostgreSQL 16`
+- Latest deployed app commit: `82cd4a4`
+- Deployment method currently used: archive upload and in-place extract (server app directory is not a Git checkout)
 
 ## 2. Current VPS Status
 
@@ -75,6 +78,8 @@ Allowed inbound ports:
 - Configured Nginx reverse proxy
 - Enabled PM2 startup on boot
 - Enabled firewall rules for SSH, HTTP, and HTTPS
+- Applied latest security hardening deployment (`82cd4a4`)
+- Restarted PM2 apps under `realestate` user and saved process list
 
 ## 4. Application Notes
 
@@ -85,6 +90,8 @@ Allowed inbound ports:
 - Database schema was applied using Drizzle
 - Mock data has been seeded into the live VPS database for demo/testing use
 - Login over HTTP was fixed by disabling `Secure` cookies for the current non-HTTPS deployment
+- Language toggle and Tamil i18n home page integration are live
+- Frontend and backend production builds succeeded during latest deployment
 
 ## 5. Security Report
 
@@ -97,13 +104,17 @@ Allowed inbound ports:
 - Admin-only routes now require an authenticated admin token
 - Public properties endpoint no longer exposes hidden and archived listings by default
 - Backend login cookies now work correctly for the current HTTP-only deployment
+- Global and route-level rate limiting are enabled (`/api`, auth, public form submission, and admin write paths)
+- CSRF protection is enabled for admin state-changing routes
+- Backend payload validation is enabled for leads, contacts, and listing requests
+- Backend and frontend HTML sanitization are using stronger libraries (`sanitize-html` and `dompurify`)
+- Admin login now supports bcrypt hash verification and auto-upgrades legacy plain-text admin passwords on successful login
 
 ### Security Risks Still Present
 
 #### High Priority
 
 - The VPS `root` password was shared in chat and should be rotated immediately
-- The app currently uses plain-text password comparison for admin login
 - The deployment is still HTTP only and does not yet have TLS/HTTPS
 - Cloudinary secrets and app secrets live in env files on the VPS, so file permissions should be reviewed carefully
 
@@ -114,14 +125,14 @@ Allowed inbound ports:
 - No separate non-root deployment workflow has been set up beyond the runtime user
 - No backup automation has been configured for PostgreSQL or uploaded media references
 - No monitoring or alerting stack is configured yet
+- Legacy admin records that have never logged in since bcrypt rollout may still be plain text until first successful login (migration is lazy-upgrade)
 
 #### Lower Priority / Operational Risks
 
 - A newer Ubuntu kernel is available, so a planned reboot is recommended
 - No SSL certificate is installed yet
 - No domain has been configured yet
-- The application currently has no rate limiting on public form endpoints
-- The admin password should be moved to hashed storage as soon as possible
+- The deployment directory is not a Git checkout, which makes `git pull`-based deploys unavailable until workflow is standardized
 
 ## 6. Recommended Immediate Next Steps
 
@@ -130,8 +141,8 @@ Allowed inbound ports:
 1. Rotate the VPS `root` password.
 2. Change the temporary CRM admin password.
 3. Attach the real domain and enable HTTPS with Let's Encrypt.
-4. Replace plain-text admin password handling with `bcrypt`.
-5. Re-enable secure cookies after HTTPS is enabled.
+4. Re-enable secure cookies after HTTPS is enabled.
+5. Confirm all admin users have logged in once post-rollout so legacy plain-text records are upgraded to bcrypt hashes.
 
 ### Strongly Recommended
 
@@ -140,6 +151,7 @@ Allowed inbound ports:
 3. Install and configure `fail2ban`.
 4. Add PostgreSQL backups.
 5. Add PM2 log rotation and basic uptime monitoring.
+6. Standardize deployments to a Git checkout or CI/CD pipeline instead of archive upload.
 
 ## 7. Sensitive Data Handling Note
 
@@ -157,4 +169,4 @@ This report intentionally does not store active secrets, passwords, database cre
 
 Current state: `Deployed and operational for testing / controlled use`
 
-This VPS is now hosting the application successfully, the core stack is running correctly, and demo data is available for presentation/testing. It is not yet fully hardened for long-term production use until password handling, HTTPS, SSH hardening, and backup/monitoring are completed.
+This VPS is hosting the latest code successfully, PM2 services are online, and security posture is improved with rate limiting, CSRF checks, request validation, and stronger sanitization. It is still not fully production-hardened until root credentials are rotated, HTTPS is enabled, SSH is hardened, and backup/monitoring workflows are in place.
