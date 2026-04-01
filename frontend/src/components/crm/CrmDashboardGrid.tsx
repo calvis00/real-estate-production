@@ -64,6 +64,18 @@ function formatDate(value?: string | null) {
   });
 }
 
+function formatDateTime(value?: string | null) {
+  if (!value) return '-';
+
+  return new Date(value).toLocaleString('en-IN', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 function formatDateInput(value?: string | null) {
   if (!value) return '';
   const date = new Date(value);
@@ -427,7 +439,7 @@ export default function CrmDashboardGrid() {
       .toLowerCase();
 
     const matchesSearch = haystack.includes(searchTerm.toLowerCase());
-    const normalizedStatus = statusFilter === 'All' ? 'All' : statusFilter.toUpperCase();
+    const normalizedStatus = statusFilter === 'All' ? 'ALL' : statusFilter.toUpperCase();
     const matchesStatus = normalizedStatus === 'ALL' || property.status === normalizedStatus;
     return matchesSearch && matchesStatus;
   });
@@ -459,7 +471,20 @@ export default function CrmDashboardGrid() {
 
   const crmColumnDefs: ColDef[] = [
     { field: 'id', headerName: 'ID', maxWidth: 90, pinned: 'left', cellClass: numericCellClass },
-    { field: 'createdAt', headerName: 'Created', cellClass: dateCellClass, valueFormatter: ({ value }) => formatDate(value), minWidth: 130 },
+    {
+      field: 'createdAt',
+      headerName: 'Created',
+      cellClass: dateCellClass,
+      valueFormatter: ({ value }) => formatDateTime(value),
+      minWidth: 190,
+    },
+    {
+      field: 'updatedAt',
+      headerName: 'Last Modified',
+      cellClass: dateCellClass,
+      valueFormatter: ({ value }) => formatDateTime(value),
+      minWidth: 190,
+    },
     { field: 'customerName', headerName: 'Customer', editable: true, minWidth: 180, pinned: 'left' },
     { field: 'phone', headerName: 'Phone', editable: true, minWidth: 150, cellClass: numericCellClass },
     { field: 'email', headerName: 'Email', editable: true, minWidth: 220 },
@@ -560,7 +585,20 @@ export default function CrmDashboardGrid() {
   const propertyColumnDefs: ColDef[] = [
     { field: 'id', headerName: 'ID', minWidth: 120, pinned: 'left', cellClass: numericCellClass },
     { field: 'title', headerName: 'Property', minWidth: 260, pinned: 'left' },
-    { field: 'createdAt', headerName: 'Created', cellClass: dateCellClass, valueFormatter: ({ value }) => formatDate(value), minWidth: 130 },
+    {
+      field: 'createdAt',
+      headerName: 'Created',
+      cellClass: dateCellClass,
+      valueFormatter: ({ value }) => formatDateTime(value),
+      minWidth: 190,
+    },
+    {
+      field: 'updatedAt',
+      headerName: 'Last Modified',
+      cellClass: dateCellClass,
+      valueFormatter: ({ value }) => formatDateTime(value),
+      minWidth: 190,
+    },
     { field: 'city', headerName: 'City', minWidth: 130 },
     { field: 'locality', headerName: 'Locality', minWidth: 150 },
     { field: 'type', headerName: 'Market Type', minWidth: 170 },
