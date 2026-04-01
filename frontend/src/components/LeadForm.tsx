@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { apiUrl } from '@/utils/api';
 
 export default function LeadForm({ buttonText = 'Request Expert Consultation', propertyId }: { buttonText?: string; propertyId?: string }) {
   const [formData, setFormData] = useState({
@@ -18,8 +19,6 @@ export default function LeadForm({ buttonText = 'Request Expert Consultation', p
     message: '',
   });
 
-  const apiBaseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8081';
-
   const handleChange =
     (field: keyof typeof formData) =>
     (event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -35,7 +34,7 @@ export default function LeadForm({ buttonText = 'Request Expert Consultation', p
     setSubmitState({ type: 'idle', message: '' });
 
     try {
-      const response = await fetch(`${apiBaseUrl}/api/contacts`, {
+      const response = await fetch(apiUrl('/api/contacts'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -2,6 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { PROPERTY_TEMPLATES } from '@/utils/templates';
+import { apiUrl } from '@/utils/api';
 
 interface AddPropertyModalProps {
     isOpen: boolean;
@@ -78,11 +79,15 @@ export default function AddPropertyModal({ isOpen, onClose, onRefresh, initialDa
     const handleSelectTemplate = (templateId: string) => {
         const template = PROPERTY_TEMPLATES.find(t => t.id === templateId);
         if (template) {
-            setFormData({
+            const templateDefaults = {
                 city: 'Chennai',
                 locality: 'OMR',
                 price: 0,
                 areaSqft: 1000,
+            };
+
+            setFormData({
+                ...templateDefaults,
                 ...template.defaultData
             });
             setStep('editor');
@@ -135,8 +140,8 @@ export default function AddPropertyModal({ isOpen, onClose, onRefresh, initialDa
 
         try {
             const url = initialData 
-                ? `http://localhost:8081/api/properties/${initialData.id}`
-                : 'http://localhost:8081/api/properties';
+                ? apiUrl(`/api/properties/${initialData.id}`)
+                : apiUrl('/api/properties');
             
             const res = await fetch(url, {
                 method: initialData ? 'PUT' : 'POST',

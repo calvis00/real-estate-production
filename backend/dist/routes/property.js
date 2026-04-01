@@ -2,14 +2,16 @@ import { Router } from 'express';
 import { db } from '../db/index.js';
 import { properties } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
-import { authMiddleware } from '../middleware/auth.js';
+import { attachOptionalAdmin, authMiddleware } from '../middleware/auth.js';
 import { upload } from '../middleware/upload.js';
-import { CreatePropertySchema } from '../schemas/property.js';
+import { CreatePropertySchema, UpdatePropertySchema } from '../schemas/property.js';
 const router = Router();
 // GET /api/properties
-router.get('/', async (req, res) => {
+router.get('/', attachOptionalAdmin, async (req, res) => {
     try {
-        const data = await db.select().from(properties);
+        const data = req.user
+            ? await db.select().from(properties)
+            : await db.select().from(properties).where(eq(properties.status, 'ACTIVE'));
         res.json({ message: 'List of properties', data });
     }
     catch (error) {
@@ -35,6 +37,8 @@ router.get('/:id', async (req, res) => {
 router.post('/', authMiddleware, upload.array('assets', 15), async (req, res) => {
     try {
         // 1. Validate Text Data
+        console.log('--- Property Creation Debug ---');
+        console.log('Body:', req.body);
         const validatedData = CreatePropertySchema.parse(req.body);
         // 2. Extract Assets from Cloudinary
         const files = req.files;
@@ -67,6 +71,81 @@ router.post('/', authMiddleware, upload.array('assets', 15), async (req, res) =>
             return res.status(400).json({ message: 'Validation failed', errors: error.errors });
         }
         res.status(500).json({ message: 'Failed to create property', error: error.message });
+    }
+});
+// PUT /api/properties/:id
+router.put('/:id', authMiddleware, upload.array('assets', 15), async (req, res) => {
+    try {
+        const { id } = req.params;
+        const [existing] = await db.select().from(properties).where(eq(properties.id, id));
+        if (!existing)
+            return res.status(404).json({ message: 'Property not found' });
+        // 1. Validate and Coerce Data
+        const validatedData = UpdatePropertySchema.parse(req.body);
+        // 2. Extract assets
+        const files = req.files;
+        const images = [...existing.images];
+        const videos = [...existing.videos];
+        if (files && files.length > 0) {
+            files.forEach((file) => {
+                if (file.mimetype.startsWith('video/')) {
+                    videos.push(file.path);
+                }
+                else {
+                    images.push(file.path);
+                }
+            });
+        }
+        // 3. Update with merged data
+        const updateData = {
+            ...validatedData,
+            images,
+            videos,
+            updatedAt: new Date(),
+        };
+        const [updatedProperty] = await db.update(properties)
+            .set(updateData)
+            .where(eq(properties.id, id))
+            .returning();
+        res.json({ message: 'Property updated successfully', data: updatedProperty });
+    }
+    catch (error) {
+        console.error('Update Error:', error);
+        if (error.name === 'ZodError') {
+            return res.status(400).json({ message: 'Validation failed', errors: error.errors });
+        }
+        res.status(500).json({ message: 'Update failed', error: error.message });
+    }
+});
+// PATCH /api/properties/:id/status
+router.patch('/:id/status', authMiddleware, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const { status } = req.body;
+        if (!['ACTIVE', 'HIDDEN', 'ARCHIVED', 'SOLD'].includes(status)) {
+            return res.status(400).json({ message: 'Invalid status' });
+        }
+        const [updated] = await db.update(properties)
+            .set({ status, updatedAt: new Date() })
+            .where(eq(properties.id, id))
+            .returning();
+        res.json({ message: `Property status updated to ${status}`, data: updated });
+    }
+    catch (error) {
+        res.status(500).json({ message: 'Status update failed', error: error.message });
+    }
+});
+// DELETE /api/properties/:id
+router.delete('/:id', authMiddleware, async (req, res) => {
+    try {
+        const { id } = req.params;
+        const [deleted] = await db.delete(properties).where(eq(properties.id, id)).returning();
+        if (!deleted)
+            return res.status(404).json({ message: 'Property not found' });
+        res.json({ message: 'Property deleted permanently', data: deleted });
+    }
+    catch (error) {
+        res.status(500).json({ message: 'Deletion failed', error: error.message });
     }
 });
 export default router;

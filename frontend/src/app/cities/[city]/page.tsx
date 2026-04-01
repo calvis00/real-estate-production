@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import PropertyCard from '@/components/PropertyCard';
 import Link from 'next/link';
+import { apiUrl } from '@/utils/api';
 
 export default function CityLandingPage() {
   const { city } = useParams();
@@ -13,7 +14,7 @@ export default function CityLandingPage() {
   const cityName = typeof city === 'string' ? city.charAt(0).toUpperCase() + city.slice(1) : '';
 
   useEffect(() => {
-    fetch('http://localhost:8081/api/properties')
+    fetch(apiUrl('/api/properties'))
       .then(res => res.json())
       .then(data => {
         // Filter by city (case-insensitive)

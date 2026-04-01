@@ -1,0 +1,15 @@
+run-logs/
+*.tmp
+*.tar.gz
+
+backend/.env
+frontend/.env
+frontend/.env.local
+frontend/.env.production
+
+backend/node_modules/
+backend/dist/
+
+frontend/node_modules/
+frontend/.next/
+frontend/.next-*/

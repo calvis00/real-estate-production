@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { apiUrl } from '@/utils/api';
 
 interface InquiryModalProps {
     isOpen: boolean;
@@ -39,7 +40,7 @@ export default function InquiryModal({ isOpen, onClose, type }: InquiryModalProp
         setIsSubmitting(true);
         const endpoint = type === 'CONTACT' ? '/api/contacts' : '/api/listing-requests';
         try {
-            await fetch(`http://localhost:8081${endpoint}`, {
+            await fetch(apiUrl(endpoint), {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({

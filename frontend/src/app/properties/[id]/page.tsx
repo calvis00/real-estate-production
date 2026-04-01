@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import LeadForm from '@/components/LeadForm';
+import { apiUrl } from '@/utils/api';
 
 interface Property {
   id: string;
@@ -49,7 +50,7 @@ export default function PropertyDetailPage() {
 
   useEffect(() => {
     if (!id) return;
-    fetch(`http://localhost:8081/api/properties/${id}`)
+    fetch(apiUrl(`/api/properties/${id}`))
       .then(res => res.json())
       .then(data => {
         setProperty(data.data);

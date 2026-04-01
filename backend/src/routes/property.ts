@@ -2,16 +2,19 @@ import { Router } from 'express';
 import { db } from '../db/index.js';
 import { properties } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
-import { authMiddleware } from '../middleware/auth.js';
+import { attachOptionalAdmin, authMiddleware } from '../middleware/auth.js';
 import { upload } from '../middleware/upload.js';
 import { CreatePropertySchema, UpdatePropertySchema } from '../schemas/property.js';
 
 const router = Router();
 
 // GET /api/properties
-router.get('/', async (req, res) => {
+router.get('/', attachOptionalAdmin, async (req: any, res) => {
   try {
-    const data = await db.select().from(properties);
+    const data = req.user
+      ? await db.select().from(properties)
+      : await db.select().from(properties).where(eq(properties.status, 'ACTIVE'));
+
     res.json({ message: 'List of properties', data });
   } catch (error) {
     res.status(500).json({ message: 'Failed to fetch properties', error });

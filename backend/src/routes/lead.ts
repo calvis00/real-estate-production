@@ -32,6 +32,7 @@ router.get('/', authMiddleware, async (req, res) => {
 // Update lead status
 router.put('/:id', authMiddleware, async (req, res) => {
     const { id } = req.params;
+    const leadId = Number(id);
     const {
         customerName, phone, email, requirementText, propertyType,
         preferredLocation, budgetMin, budgetMax, status, priority,
@@ -62,7 +63,7 @@ router.put('/:id', authMiddleware, async (req, res) => {
                 ...(convertedAt !== undefined && { convertedAt }),
                 updatedAt: new Date()
             })
-            .where(eq(leads.id, id));
+            .where(eq(leads.id, leadId));
         res.json({ message: 'Lead updated successfully' });
     } catch (error) {
         console.error('Update failed:', error);
@@ -72,8 +73,9 @@ router.put('/:id', authMiddleware, async (req, res) => {
 
 router.delete('/:id', authMiddleware, async (req, res) => {
     const { id } = req.params;
+    const leadId = Number(id);
     try {
-        await db.delete(leads).where(eq(leads.id, id));
+        await db.delete(leads).where(eq(leads.id, leadId));
         res.json({ message: 'Lead deleted successfully' });
     } catch (error) {
         res.status(500).json({ message: 'Failed to delete lead', error });

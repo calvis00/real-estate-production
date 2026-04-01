@@ -5,6 +5,7 @@ import PropertyCard from '@/components/PropertyCard';
 import LeadForm from '@/components/LeadForm';
 import BudgetSlider from '@/components/BudgetSlider';
 import Link from 'next/link';
+import { apiUrl } from '@/utils/api';
 
 interface Property {
   id: string;
@@ -44,7 +45,7 @@ export default function LandingPage() {
   useEffect(() => {
     const fetchProperties = async () => {
       try {
-        const res = await fetch('http://localhost:8081/api/properties');
+        const res = await fetch(apiUrl('/api/properties'));
         const data = await res.json();
         setProperties(data.data || []);
         setFilteredProperties(data.data || []);
@@ -193,7 +194,7 @@ export default function LandingPage() {
 
                       if (mobile) {
                         try {
-                          await fetch('http://localhost:8081/api/leads', {
+                          await fetch(apiUrl('/api/leads'), {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({
@@ -202,7 +203,7 @@ export default function LandingPage() {
                               requirementText: `Interested in ${typeSelect?.value || 'Any'} property in ${selectedCity || 'Tamil Nadu'}`,
                               propertyType: typeSelect?.value || 'Any',
                               budgetMin: minBudget * 100000,
-                              priceMax: maxBudget * 100000,
+                              budgetMax: maxBudget * 100000,
                               source: 'HERO_SEARCH'
                             })
                           });

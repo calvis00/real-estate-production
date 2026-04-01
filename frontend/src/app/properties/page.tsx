@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import PropertyCard from '@/components/PropertyCard';
+import { apiUrl } from '@/utils/api';
 
 interface Property {
   id: string;
@@ -25,7 +26,7 @@ export default function PropertiesPage() {
   const [filter, setFilter] = useState('All');
 
   useEffect(() => {
-    fetch('http://localhost:8081/api/properties')
+    fetch(apiUrl('/api/properties'))
       .then(res => res.json())
       .then(data => {
         setProperties(data.data);

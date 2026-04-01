@@ -12,9 +12,23 @@ dotenv.config();
 
 const app = express();
 const port = process.env.PORT || 8081; // Triggering process reload for Cloudinary.
+const configuredOrigins = process.env.CORS_ORIGIN || process.env.FRONTEND_URL;
+const allowedOrigins = (
+  configuredOrigins || 'http://localhost:3000,http://127.0.0.1:3000'
+)
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
 app.use(cors({
-    origin: 'http://localhost:3000',
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+        return;
+      }
+
+      callback(new Error('CORS origin not allowed'));
+    },
     credentials: true
 }));
 app.use(express.json());
