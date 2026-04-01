@@ -3,13 +3,18 @@ import { db } from '../db/index.js';
 import { listingRequests, leads } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
 import { authMiddleware } from '../middleware/auth.js';
+import { requireCsrfToken } from '../middleware/security.js';
+import { validateBody } from '../middleware/validate.js';
+import { CreateListingRequestSchema, UpdateListingRequestSchema } from '../schemas/crm.js';
+import { sanitizeCrmPayload } from '../utils/sanitize.js';
 
 const router = Router();
 
 // POST /api/listing-requests
-router.post('/', async (req, res) => {
+router.post('/', validateBody(CreateListingRequestSchema), async (req, res) => {
   try {
-    const [newRequest] = await db.insert(listingRequests).values(req.body).returning();
+    const sanitizedBody = sanitizeCrmPayload(req.body ?? {});
+    const [newRequest] = await db.insert(listingRequests).values(sanitizedBody as any).returning();
     console.log('New listing request received:', newRequest);
     res.status(201).json({ message: 'Request submitted successfully', data: newRequest });
   } catch (error) {
@@ -28,9 +33,12 @@ router.get('/', authMiddleware, async (req, res) => {
 });
 
 // Update listing request
-router.put('/:id', authMiddleware, async (req, res) => {
+router.put('/:id', authMiddleware, requireCsrfToken, validateBody(UpdateListingRequestSchema), async (req, res) => {
   const { id } = req.params;
-  const updateData = { ...req.body, updatedAt: new Date() };
+  if (!Number.isInteger(Number(id))) {
+    return res.status(400).json({ message: 'Invalid request id' });
+  }
+  const updateData = { ...(sanitizeCrmPayload(req.body ?? {}) as any), updatedAt: new Date() };
   try {
     await db.update(listingRequests).set(updateData).where(eq(listingRequests.id, Number(id)));
     res.json({ message: 'Request updated successfully' });
@@ -40,8 +48,11 @@ router.put('/:id', authMiddleware, async (req, res) => {
 });
 
 // Delete listing request
-router.delete('/:id', authMiddleware, async (req, res) => {
+router.delete('/:id', authMiddleware, requireCsrfToken, async (req, res) => {
   const { id } = req.params;
+  if (!Number.isInteger(Number(id))) {
+    return res.status(400).json({ message: 'Invalid request id' });
+  }
   try {
     await db.delete(listingRequests).where(eq(listingRequests.id, Number(id)));
     res.json({ message: 'Request deleted successfully' });
@@ -51,8 +62,11 @@ router.delete('/:id', authMiddleware, async (req, res) => {
 });
 
 // Convert listing request to lead
-router.post('/:id/convert', authMiddleware, async (req, res) => {
+router.post('/:id/convert', authMiddleware, requireCsrfToken, async (req, res) => {
   const { id } = req.params;
+  if (!Number.isInteger(Number(id))) {
+    return res.status(400).json({ message: 'Invalid request id' });
+  }
   try {
     const request = await db.select().from(listingRequests).where(eq(listingRequests.id, Number(id))).limit(1);
     

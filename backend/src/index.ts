@@ -2,11 +2,13 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import cookieParser from 'cookie-parser';
+import helmet from 'helmet';
 import propertyRoutes from './routes/property.js';
 import leadRoutes from './routes/lead.js';
 import contactRoutes from './routes/contact.js';
 import listingRequestRoutes from './routes/listingRequest.js';
 import authRoutes from './routes/auth.js';
+import { adminWriteLimiter, apiLimiter, authLimiter, publicFormLimiter } from './middleware/security.js';
 
 dotenv.config();
 
@@ -31,15 +33,18 @@ app.use(cors({
     },
     credentials: true
 }));
-app.use(express.json());
+app.set('trust proxy', 1);
+app.use(helmet());
+app.use(express.json({ limit: '1mb' }));
 app.use(cookieParser());
+app.use('/api', apiLimiter);
 
 // Routes
-app.use('/api/auth', authRoutes);
-app.use('/api/properties', propertyRoutes);
-app.use('/api/leads', leadRoutes);
-app.use('/api/contacts', contactRoutes);
-app.use('/api/listing-requests', listingRequestRoutes);
+app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/properties', adminWriteLimiter, propertyRoutes);
+app.use('/api/leads', publicFormLimiter, adminWriteLimiter, leadRoutes);
+app.use('/api/contacts', publicFormLimiter, adminWriteLimiter, contactRoutes);
+app.use('/api/listing-requests', publicFormLimiter, adminWriteLimiter, listingRequestRoutes);
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', message: 'Real Estate API is running' });

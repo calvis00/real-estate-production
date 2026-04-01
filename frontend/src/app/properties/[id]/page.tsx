@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import LeadForm from '@/components/LeadForm';
 import { apiUrl } from '@/utils/api';
+import { sanitizeHtml } from '@/utils/sanitizeHtml';
 
 interface Property {
   id: string;
@@ -204,7 +205,7 @@ export default function PropertyDetailPage() {
                 </div>
                 <div 
                     className="prose prose-xl font-serif text-primary/80 leading-relaxed max-w-none prose-p:my-6 prose-strong:text-primary prose-ul:list-none prose-ul:p-0 prose-li:my-4"
-                    dangerouslySetInnerHTML={{ __html: property.description }}
+                    dangerouslySetInnerHTML={{ __html: sanitizeHtml(property.description) }}
                 />
             </div>
 

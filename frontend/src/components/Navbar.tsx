@@ -4,10 +4,13 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useModal } from '@/context/ModalContext';
+import { useLang } from '@/i18n/LangContext';
+import LangToggle from '@/i18n/LangToggle';
 
 export default function Navbar() {
   const pathname = usePathname();
   const { openModal } = useModal();
+  const { t } = useLang();
 
   if (pathname.startsWith('/crm')) return null;
 
@@ -19,11 +22,12 @@ export default function Navbar() {
             ABC<span className="text-secondary">.</span>
           </Link>
           <div className="hidden md:flex items-center gap-6">
-            <Link href="/" className="text-sm font-semibold hover:text-primary transition-colors">Home</Link>
-            <Link href="/properties" className="text-sm font-semibold hover:text-primary transition-colors">Properties</Link>
+            <Link href="/" className="text-sm font-semibold hover:text-primary transition-colors">{t('nav_home')}</Link>
+            <Link href="/properties" className="text-sm font-semibold hover:text-primary transition-colors">{t('nav_properties')}</Link>
           </div>
         </div>
         <div className="flex items-center gap-6">
+          <LangToggle />
           <button 
             onClick={() => {
               if (window.location.pathname !== '/') {
@@ -34,7 +38,7 @@ export default function Navbar() {
             }}
             className="text-sm font-semibold hover:text-primary hidden lg:block transition-all"
           >
-            Contact
+            {t('nav_contact')}
           </button>
           <button 
             onClick={() => openModal('LISTING')}

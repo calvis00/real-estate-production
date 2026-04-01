@@ -13,3 +13,31 @@ export const apiUrl = (path: string) => {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
   return `${apiBaseUrl}${normalizedPath}`;
 };
+
+export const getCsrfToken = () => {
+  if (typeof document === 'undefined') {
+    return '';
+  }
+
+  const tokenCookie = document.cookie
+    .split('; ')
+    .find((entry) => entry.startsWith('csrfToken='));
+
+  if (!tokenCookie) {
+    return '';
+  }
+
+  return decodeURIComponent(tokenCookie.split('=').slice(1).join('='));
+};
+
+export const withCsrfHeader = (headers: Record<string, string> = {}) => {
+  const csrfToken = getCsrfToken();
+  if (!csrfToken) {
+    return headers;
+  }
+
+  return {
+    ...headers,
+    'x-csrf-token': csrfToken,
+  };
+};

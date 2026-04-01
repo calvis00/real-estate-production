@@ -2,7 +2,8 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { PROPERTY_TEMPLATES } from '@/utils/templates';
-import { apiUrl } from '@/utils/api';
+import { apiUrl, withCsrfHeader } from '@/utils/api';
+import { sanitizeHtml } from '@/utils/sanitizeHtml';
 
 interface AddPropertyModalProps {
     isOpen: boolean;
@@ -116,7 +117,7 @@ export default function AddPropertyModal({ isOpen, onClose, onRefresh, initialDa
         setIsPublishing(true);
         setError(null);
 
-        const description = editorRef.current?.innerHTML || '';
+        const description = sanitizeHtml(editorRef.current?.innerHTML || '');
         const data = new FormData();
         
         Object.keys(formData).forEach(key => {
@@ -145,6 +146,7 @@ export default function AddPropertyModal({ isOpen, onClose, onRefresh, initialDa
             
             const res = await fetch(url, {
                 method: initialData ? 'PUT' : 'POST',
+                headers: withCsrfHeader(),
                 body: data,
                 credentials: 'include'
             });
@@ -348,7 +350,7 @@ export default function AddPropertyModal({ isOpen, onClose, onRefresh, initialDa
                                         contentEditable
                                         onMouseUp={handleMouseUp}
                                         className="w-full text-xl font-sans border-none focus:ring-0 bg-transparent text-primary/80 min-h-[400px] resize-none p-0 outline-none leading-relaxed prose prose-xl max-w-none prose-headings:font-black prose-p:my-4"
-                                        dangerouslySetInnerHTML={{ __html: formData.description || '' }}
+                                        dangerouslySetInnerHTML={{ __html: sanitizeHtml(formData.description || '') }}
                                     />
                                 </>
                             ) : (
@@ -357,7 +359,7 @@ export default function AddPropertyModal({ isOpen, onClose, onRefresh, initialDa
                                     <h1 className="text-6xl font-black font-headline text-primary mb-12 tracking-tight leading-[0.9] uppercase">{formData.title}</h1>
                                     <div 
                                         className="prose prose-2xl font-serif text-primary/80 leading-relaxed mb-16"
-                                        dangerouslySetInnerHTML={{ __html: editorRef.current?.innerHTML || formData.description || '' }}
+                                        dangerouslySetInnerHTML={{ __html: sanitizeHtml(editorRef.current?.innerHTML || formData.description || '') }}
                                     />
                                     
                                     {/* ASSET PREVIEW GRID */}

@@ -3,13 +3,18 @@ import { db } from '../db/index.js';
 import { contacts, leads } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
 import { authMiddleware } from '../middleware/auth.js';
+import { requireCsrfToken } from '../middleware/security.js';
+import { validateBody } from '../middleware/validate.js';
+import { CreateContactSchema, UpdateContactSchema } from '../schemas/crm.js';
+import { sanitizeCrmPayload } from '../utils/sanitize.js';
 
 const router = Router();
 
 // POST /api/contacts
-router.post('/', async (req, res) => {
+router.post('/', validateBody(CreateContactSchema), async (req, res) => {
   try {
-    const [newContact] = await db.insert(contacts).values(req.body).returning();
+    const sanitizedBody = sanitizeCrmPayload(req.body ?? {});
+    const [newContact] = await db.insert(contacts).values(sanitizedBody as any).returning();
     console.log('New contact received:', newContact);
     res.status(201).json({ message: 'Contact submitted successfully', data: newContact });
   } catch (error) {
@@ -28,9 +33,12 @@ router.get('/', authMiddleware, async (req, res) => {
 });
 
 // Update contact
-router.put('/:id', authMiddleware, async (req, res) => {
+router.put('/:id', authMiddleware, requireCsrfToken, validateBody(UpdateContactSchema), async (req, res) => {
   const { id } = req.params;
-  const updateData = { ...req.body, updatedAt: new Date() };
+  if (!Number.isInteger(Number(id))) {
+    return res.status(400).json({ message: 'Invalid contact id' });
+  }
+  const updateData = { ...(sanitizeCrmPayload(req.body ?? {}) as any), updatedAt: new Date() };
   try {
     await db.update(contacts).set(updateData).where(eq(contacts.id, Number(id)));
     res.json({ message: 'Contact updated successfully' });
@@ -40,8 +48,11 @@ router.put('/:id', authMiddleware, async (req, res) => {
 });
 
 // Delete contact
-router.delete('/:id', authMiddleware, async (req, res) => {
+router.delete('/:id', authMiddleware, requireCsrfToken, async (req, res) => {
   const { id } = req.params;
+  if (!Number.isInteger(Number(id))) {
+    return res.status(400).json({ message: 'Invalid contact id' });
+  }
   try {
     await db.delete(contacts).where(eq(contacts.id, Number(id)));
     res.json({ message: 'Contact deleted successfully' });
@@ -51,8 +62,11 @@ router.delete('/:id', authMiddleware, async (req, res) => {
 });
 
 // Convert contact to lead
-router.post('/:id/convert', authMiddleware, async (req, res) => {
+router.post('/:id/convert', authMiddleware, requireCsrfToken, async (req, res) => {
   const { id } = req.params;
+  if (!Number.isInteger(Number(id))) {
+    return res.status(400).json({ message: 'Invalid contact id' });
+  }
   try {
     const contact = await db.select().from(contacts).where(eq(contacts.id, Number(id))).limit(1);
     

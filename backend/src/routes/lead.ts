@@ -3,13 +3,18 @@ import { db } from '../db/index.js';
 import { leads } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
 import { authMiddleware } from '../middleware/auth.js';
+import { requireCsrfToken } from '../middleware/security.js';
+import { validateBody } from '../middleware/validate.js';
+import { CreateLeadSchema, UpdateLeadSchema } from '../schemas/crm.js';
+import { sanitizeCrmPayload } from '../utils/sanitize.js';
 
 const router = Router();
 
 // POST /api/leads
-router.post('/', async (req, res) => {
+router.post('/', validateBody(CreateLeadSchema), async (req, res) => {
   try {
-    const [newLead] = await db.insert(leads).values(req.body).returning();
+    const sanitizedBody = sanitizeCrmPayload(req.body ?? {});
+    const [newLead] = await db.insert(leads).values(sanitizedBody as any).returning();
     console.log('New lead received:', newLead);
     res.status(201).json({ message: 'Lead submitted successfully', data: newLead });
   } catch (error) {
@@ -30,15 +35,19 @@ router.get('/', authMiddleware, async (req, res) => {
 });
 
 // Update lead status
-router.put('/:id', authMiddleware, async (req, res) => {
+router.put('/:id', authMiddleware, requireCsrfToken, validateBody(UpdateLeadSchema), async (req, res) => {
     const { id } = req.params;
     const leadId = Number(id);
+    if (!Number.isInteger(leadId)) {
+        return res.status(400).json({ message: 'Invalid lead id' });
+    }
+    const sanitizedBody = sanitizeCrmPayload(req.body ?? {});
     const {
         customerName, phone, email, requirementText, propertyType,
         preferredLocation, budgetMin, budgetMax, status, priority,
         source, assignedTo, nextFollowUpDate, lastContactedAt,
         notes, tags, isConverted, convertedAt
-    } = req.body;
+    } = sanitizedBody as any;
 
     try {
         await db.update(leads)
@@ -71,9 +80,12 @@ router.put('/:id', authMiddleware, async (req, res) => {
     }
 });
 
-router.delete('/:id', authMiddleware, async (req, res) => {
+router.delete('/:id', authMiddleware, requireCsrfToken, async (req, res) => {
     const { id } = req.params;
     const leadId = Number(id);
+    if (!Number.isInteger(leadId)) {
+        return res.status(400).json({ message: 'Invalid lead id' });
+    }
     try {
         await db.delete(leads).where(eq(leads.id, leadId));
         res.json({ message: 'Lead deleted successfully' });

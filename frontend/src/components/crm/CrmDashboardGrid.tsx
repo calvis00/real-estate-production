@@ -12,7 +12,7 @@ import {
   type ICellRendererParams,
 } from 'ag-grid-community';
 import AddPropertyModal from '@/components/AddPropertyModal';
-import { apiUrl } from '@/utils/api';
+import { apiUrl, withCsrfHeader } from '@/utils/api';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -278,7 +278,11 @@ export default function CrmDashboardGrid() {
   }, []);
 
   async function handleLogout() {
-    await fetch(apiUrl('/api/auth/logout'), { method: 'POST', credentials: 'include' });
+    await fetch(apiUrl('/api/auth/logout'), {
+      method: 'POST',
+      credentials: 'include',
+      headers: withCsrfHeader(),
+    });
     router.push('/crm/login');
   }
 
@@ -290,6 +294,7 @@ export default function CrmDashboardGrid() {
 
     const res = await fetch(apiUrl(`/api/${endpoint}/${id}`), {
       method: 'DELETE',
+      headers: withCsrfHeader(),
       credentials: 'include',
     });
 
@@ -308,7 +313,7 @@ export default function CrmDashboardGrid() {
 
     await fetch(apiUrl(`/api/${endpoint}/${id}`), {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: withCsrfHeader({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ [field]: value }),
       credentials: 'include',
     });
@@ -332,6 +337,7 @@ export default function CrmDashboardGrid() {
     const endpoint = activeTab === 'contacts' ? 'contacts' : 'listing-requests';
     const res = await fetch(apiUrl(`/api/${endpoint}/${id}/convert`), {
       method: 'POST',
+      headers: withCsrfHeader(),
       credentials: 'include',
     });
 
@@ -349,6 +355,7 @@ export default function CrmDashboardGrid() {
     if (!window.confirm('Delete this property permanently? This action cannot be undone.')) return;
     const res = await fetch(apiUrl(`/api/properties/${id}`), {
       method: 'DELETE',
+      headers: withCsrfHeader(),
       credentials: 'include',
     });
     if (res.ok) setProperties((current) => current.filter((property) => property.id !== id));
@@ -357,7 +364,7 @@ export default function CrmDashboardGrid() {
   async function setPropertyStatus(id: string | number, status: string) {
     const res = await fetch(apiUrl(`/api/properties/${id}/status`), {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers: withCsrfHeader({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ status }),
       credentials: 'include',
     });
@@ -396,6 +403,53 @@ export default function CrmDashboardGrid() {
     const anchor = document.createElement('a');
     anchor.href = url;
     anchor.download = `crm_export_${new Date().toISOString().slice(0, 10)}.csv`;
+    anchor.click();
+  }
+
+  function exportProperties() {
+    const rows = filteredProperties;
+    const headers = [
+      'ID',
+      'Title',
+      'City',
+      'Locality',
+      'Market Type',
+      'Category',
+      'Bedrooms',
+      'Bathrooms',
+      'Area Sqft',
+      'Price',
+      'Status',
+      'Created At',
+      'Last Modified',
+    ];
+
+    const csvContent = [
+      headers.join(','),
+      ...rows.map((row) =>
+        [
+          `"${row.id}"`,
+          `"${(row.title || '').replace(/"/g, '""')}"`,
+          `"${row.city || ''}"`,
+          `"${row.locality || ''}"`,
+          `"${row.type || ''}"`,
+          `"${row.category || ''}"`,
+          `"${row.bedrooms ?? ''}"`,
+          `"${row.bathrooms ?? ''}"`,
+          `"${row.areaSqft ?? ''}"`,
+          `"${row.price ?? ''}"`,
+          `"${row.status || ''}"`,
+          `"${formatDateTime(row.createdAt)}"`,
+          `"${formatDateTime(row.updatedAt)}"`,
+        ].join(','),
+      ),
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = window.URL.createObjectURL(blob);
+    const anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = `properties_export_${new Date().toISOString().slice(0, 10)}.csv`;
     anchor.click();
   }
 
@@ -835,15 +889,23 @@ export default function CrmDashboardGrid() {
                   Export CSV
                 </button>
               ) : (
-                <button
-                  onClick={() => {
-                    setSelectedProperty(null);
-                    setIsModalOpen(true);
-                  }}
-                  className="rounded-xl bg-primary px-4 py-3 text-sm font-bold text-white transition hover:bg-primary/90"
-                >
-                  Add Property
-                </button>
+                <>
+                  <button
+                    onClick={exportProperties}
+                    className="rounded-xl border border-surface-container bg-white px-4 py-3 text-sm font-bold text-primary transition hover:bg-surface-container/30"
+                  >
+                    Export CSV
+                  </button>
+                  <button
+                    onClick={() => {
+                      setSelectedProperty(null);
+                      setIsModalOpen(true);
+                    }}
+                    className="rounded-xl bg-primary px-4 py-3 text-sm font-bold text-white transition hover:bg-primary/90"
+                  >
+                    Add Property
+                  </button>
+                </>
               )}
             </div>
           </div>
