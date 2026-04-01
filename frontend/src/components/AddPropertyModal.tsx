@@ -78,7 +78,13 @@ export default function AddPropertyModal({ isOpen, onClose, onRefresh, initialDa
     const handleSelectTemplate = (templateId: string) => {
         const template = PROPERTY_TEMPLATES.find(t => t.id === templateId);
         if (template) {
-            setFormData(template.defaultData);
+            setFormData({
+                city: 'Chennai',
+                locality: 'OMR',
+                price: 0,
+                areaSqft: 1000,
+                ...template.defaultData
+            });
             setStep('editor');
         }
     };

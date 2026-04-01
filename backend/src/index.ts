@@ -11,7 +11,7 @@ import authRoutes from './routes/auth.js';
 dotenv.config();
 
 const app = express();
-const port = process.env.PORT || 5000;
+const port = process.env.PORT || 8081; // Triggering process reload for Cloudinary.
 
 app.use(cors({
     origin: 'http://localhost:3000',

@@ -58,12 +58,12 @@ export default function LandingPage() {
   // Update filtering when category changes
   useEffect(() => {
     const activeProperties = properties.filter(p => !p.status || p.status === 'ACTIVE');
-    
+
     if (activeCategory === 'all') {
       setFilteredProperties(activeProperties);
     } else {
-      setFilteredProperties(activeProperties.filter(p => 
-        p.category?.toUpperCase() === activeCategory.toUpperCase() || 
+      setFilteredProperties(activeProperties.filter(p =>
+        p.category?.toUpperCase() === activeCategory.toUpperCase() ||
         p.type?.toUpperCase() === activeCategory.toUpperCase()
       ));
     }
@@ -142,7 +142,7 @@ export default function LandingPage() {
                           <input
                             id="name-input"
                             type="text"
-                            placeholder="John Doe"
+                            placeholder="Name"
                             className="w-full pl-12 pr-4 py-4 bg-surface border border-slate-300 rounded-2xl focus:border-secondary focus:bg-surface outline-none transition-all text-sm font-bold shadow-sm"
                           />
                         </div>
@@ -155,23 +155,25 @@ export default function LandingPage() {
                           <input
                             id="mobile-input"
                             type="tel"
-                            placeholder="+91 98XXX XXXXX"
+                            placeholder="Phone Number"
                             className="w-full pl-12 pr-4 py-4 bg-surface border border-slate-300 rounded-2xl focus:border-secondary focus:bg-surface outline-none transition-all text-sm font-bold shadow-sm"
                           />
                         </div>
                       </div>
 
-                      <div className="space-y-6">
-                        <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary/50 ml-1">Investment Range</label>
-                        <BudgetSlider
-                          onChange={(min: number, max: number) => {
-                            setMinBudget(min);
-                            setMaxBudget(max);
-                            const budgetText = min < 100 ? `${min}L` : `${(min / 100).toFixed(1)}Cr`;
-                            const maxText = max < 100 ? `${max}L` : `${(max / 100).toFixed(1)}Cr`;
-                            setSearchBudget(`${budgetText} - ${maxText}`);
-                          }}
-                        />
+                      <div className="space-y-8 md:col-span-2 flex flex-col items-center justify-center py-6 border-t border-surface-container mt-4">
+                        <label className="text-[10px] font-black uppercase tracking-[0.4em] text-primary/40 text-center mb-2">Investment Range</label>
+                        <div className="w-full max-w-xl">
+                          <BudgetSlider
+                            onChange={(min: number, max: number) => {
+                              setMinBudget(min);
+                              setMaxBudget(max);
+                              const budgetText = min < 100 ? `${min}L` : `${(min / 100).toFixed(1)}Cr`;
+                              const maxText = max < 100 ? `${max}L` : `${(max / 100).toFixed(1)}Cr`;
+                              setSearchBudget(`${budgetText} - ${maxText}`);
+                            }}
+                          />
+                        </div>
                       </div>
                     </>
                   )}
@@ -200,8 +202,8 @@ export default function LandingPage() {
                               requirementText: `Interested in ${typeSelect?.value || 'Any'} property in ${selectedCity || 'Tamil Nadu'}`,
                               propertyType: typeSelect?.value || 'Any',
                               budgetMin: minBudget * 100000,
-                              budgetMax: maxBudget * 100000,
-                              source: 'hero-form'
+                              priceMax: maxBudget * 100000,
+                              source: 'HERO_SEARCH'
                             })
                           });
                         } catch (err) { console.error('Lead generation failed', err); }
@@ -246,8 +248,8 @@ export default function LandingPage() {
               {categoryItems.map((item, index) => {
                 const count = properties.filter(p => p.category === item.id).length;
                 return (
-                  <div 
-                    key={index} 
+                  <div
+                    key={index}
                     onClick={() => setActiveCategory(activeCategory === item.id ? 'all' : item.id)}
                     className={`bg-surface p-10 rounded-[2.5rem] border transition-all group text-center flex flex-col items-center cursor-pointer ${activeCategory === item.id ? 'border-secondary ring-2 ring-secondary/20' : 'border-surface-container hover:border-secondary'}`}
                   >

@@ -19,6 +19,7 @@ interface Property {
   images: string[];
   videos: string[];
   tags: string[];
+  status: string;
 }
 
 export default function PropertyDetailPage() {
@@ -168,9 +169,9 @@ export default function PropertyDetailPage() {
 
       {/* Main Content Section */}
       <section className="py-24 px-6 bg-background relative -mt-20 rounded-t-[4rem] z-30 shadow-[0_-40px_80px_rgba(0,0,0,0.08)]">
-        <div className="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-24">
+        <div className="max-w-[1440px] mx-auto grid grid-cols-1 lg:grid-cols-12 gap-32">
           
-          <div className="lg:col-span-8 space-y-20 text-left">
+          <div className="lg:col-span-7 space-y-20 text-left">
             {/* Header Info */}
             <div className="space-y-6">
                 <div className="flex flex-col gap-2">
@@ -218,16 +219,25 @@ export default function PropertyDetailPage() {
           </div>
 
           {/* Contact / Lead Sidebar */}
-          <div className="lg:col-span-4 relative">
+          <div className="lg:col-span-5 relative">
             <div className="sticky top-40">
-                <div className="bg-surface p-10 rounded-[3rem] border border-surface-container shadow-2xl relative overflow-hidden group">
-                    <div className="absolute inset-0 bg-primary opacity-0 group-hover:opacity-[0.01] transition-opacity duration-700" />
-                    <div className="mb-8">
-                        <h3 className="text-2xl font-black font-headline text-primary tracking-tighter mb-1 uppercase">Acquisition</h3>
-                        <p className="text-[9px] font-black uppercase tracking-widest text-outline">Exclusive Site Visit Access</p>
+                <div className="bg-surface p-12 md:p-20 rounded-[4.5rem] border border-surface-container shadow-2xl relative overflow-hidden group border-t-8 border-t-primary">
+                    <div className="mb-8 text-center">
+                        <h3 className="text-2xl font-black font-headline text-primary tracking-tighter mb-2 uppercase leading-tight">Enquire About This Property</h3>
+                        <div className="w-12 h-1 bg-secondary mx-auto rounded-full" />
                     </div>
                     
-                    <LeadForm />
+                    {property.status === 'SOLD' ? (
+                        <div className="text-center py-8 space-y-4 animate-in fade-in duration-700">
+                            <div className="w-16 h-16 bg-red-50 rounded-2xl flex items-center justify-center mx-auto text-red-500 border border-red-100">
+                                <span className="material-symbols-outlined text-3xl">lock</span>
+                            </div>
+                            <h4 className="text-xl font-black font-headline text-primary uppercase">Asset Sold</h4>
+                            <p className="text-[10px] font-bold text-outline uppercase tracking-widest leading-relaxed"> This exclusive property has been acquired. <br/> Explore our other estates. </p>
+                        </div>
+                    ) : (
+                        <LeadForm buttonText="SEND ENQUIRY" propertyId={property.id} />
+                    )}
 
                     <div className="mt-12 pt-12 border-t border-surface-container space-y-6">
                         <div className="flex items-center gap-4 text-[10px] font-black uppercase tracking-widest text-outline">
@@ -246,12 +256,12 @@ export default function PropertyDetailPage() {
                 </div>
                 
                 {/* Visual Accent */}
-                <div className="mt-8 p-12 bg-secondary rounded-[4rem] text-primary flex items-center justify-between shadow-2xl shadow-secondary/20">
+                <div className={`mt-8 p-12 rounded-[4rem] flex items-center justify-between shadow-2xl transition-all duration-700 ${property.status === 'SOLD' ? 'bg-slate-100 text-slate-500 shadow-slate-200/50' : 'bg-secondary text-primary shadow-secondary/20'}`}>
                     <div>
                         <p className="text-[10px] font-black uppercase tracking-widest mb-1">Status</p>
-                        <p className="text-2xl font-black font-headline uppercase leading-none">Available</p>
+                        <p className="text-2xl font-black font-headline uppercase leading-none">{property.status === 'SOLD' ? 'Sold' : 'Available'}</p>
                     </div>
-                    <span className="material-symbols-outlined text-5xl">verified</span>
+                    <span className="material-symbols-outlined text-5xl">{property.status === 'SOLD' ? 'monetization_on' : 'verified'}</span>
                 </div>
             </div>
           </div>

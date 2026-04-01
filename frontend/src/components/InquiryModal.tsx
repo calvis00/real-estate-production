@@ -96,7 +96,7 @@ export default function InquiryModal({ isOpen, onClose, type }: InquiryModalProp
                                         <input 
                                             required
                                             type="text"
-                                            placeholder="Your Name"
+                                            placeholder="Name"
                                             value={formData.name}
                                             onChange={(e) => setFormData({...formData, name: e.target.value})}
                                             className="w-full pl-12 pr-6 py-4 bg-background border border-surface-container rounded-2xl focus:border-secondary transition-all text-sm font-bold shadow-inner"
@@ -111,7 +111,7 @@ export default function InquiryModal({ isOpen, onClose, type }: InquiryModalProp
                                         <input 
                                             required
                                             type="tel"
-                                            placeholder="+91 XXXX XXX XXX"
+                                            placeholder="Phone Number"
                                             value={formData.phone}
                                             onChange={(e) => setFormData({...formData, phone: e.target.value})}
                                             className="w-full pl-12 pr-6 py-4 bg-background border border-surface-container rounded-2xl focus:border-secondary transition-all text-sm font-bold shadow-inner"

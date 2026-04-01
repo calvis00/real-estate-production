@@ -23,17 +23,8 @@ export default function CRMDashboard() {
 
   useEffect(() => {
     localStorage.setItem('crmActiveTab', activeTab);
-    
-    // Auto-set the source filter when switching to specialized tabs
-    if (activeTab === 'contacts') {
-      setSourceFilter('NAV_CONTACT');
-    } else if (activeTab === 'listing_requests') {
-      setSourceFilter('NAV_LISTING_REQUEST');
-    } else if (activeTab === 'leads') {
-      setSourceFilter('All');
-    }
-    
-    setStatusFilter('All'); // Reset filter on tab change
+    setStatusFilter('All'); // Reset status filter on tab change
+    setSearchTerm('');     // Reset search on tab change
   }, [activeTab]);
 
   // Handle Click Outside to close menu
@@ -82,7 +73,7 @@ export default function CRMDashboard() {
       setProperties(propsData.data || []);
       
       setStats({
-        totalLeads: (leadsData.data || []).length + (contactsData.data || []).length + (listingData.data || []).length,
+        totalLeads: (leadsData.data || []).length,
         totalProperties: (propsData.data || []).length,
         closed: (leadsData.data || []).filter((l: any) => l.status === 'CLOSED').length
       });
@@ -138,6 +129,26 @@ export default function CRMDashboard() {
       if (activeTab === 'listing_requests') setListingRequests(listingRequests.map(r => r.id === id ? { ...r, [field]: value } : r));
     } catch (err) {
       console.error(`Update ${field} failed:`, err);
+    }
+  };
+
+  const convertLead = async (id: string | number) => {
+    if (!window.confirm('Move this into the primary Leads pipeline? It will be removed from this tab.')) return;
+    const endpoint = activeTab === 'contacts' ? 'contacts' : 'listing-requests';
+    try {
+      const res = await fetch(`http://localhost:8081/api/${endpoint}/${id}/convert`, {
+        method: 'POST',
+        credentials: 'include'
+      });
+      if (res.ok) {
+        fetchData();
+        setActiveTab('leads');
+      } else {
+        const data = await res.json();
+        alert(data.message || 'Conversion failed');
+      }
+    } catch (err) {
+      console.error('Conversion failed:', err);
     }
   };
 
@@ -223,7 +234,8 @@ export default function CRMDashboard() {
   const filteredProperties = properties.filter(p => {
     const matchesSearch = (p.title || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       (p.locality || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (p.city || '').toLowerCase().includes(searchTerm.toLowerCase());
+      (p.city || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (p.id || '').toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'All' || p.status === (statusFilter === 'Draft' ? 'DRAFT' : statusFilter.toUpperCase());
     return matchesSearch && matchesStatus;
   });
@@ -571,9 +583,21 @@ export default function CRMDashboard() {
 
                         {/* Delete */}
                         <td className="px-2 py-3 text-center border border-surface-container">
-                          <button onClick={() => deleteLead(l.id)} className="text-outline hover:text-red-500 transition-colors p-0.5 hover:bg-red-50 rounded-lg">
-                            <span className="material-symbols-outlined text-sm">delete</span>
-                          </button>
+                          <div className="flex items-center justify-center gap-2">
+                            {activeTab !== 'leads' && (
+                              <button 
+                                onClick={() => convertLead(l.id)} 
+                                className="text-secondary hover:text-primary transition-all p-1 hover:bg-secondary/10 rounded-lg group relative"
+                                title="Convert to Lead"
+                                >
+                                <span className="material-symbols-outlined text-sm">person_add</span>
+                                <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-primary text-[8px] text-white rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">Push to Leads</span>
+                              </button>
+                            )}
+                            <button onClick={() => deleteLead(l.id)} className="text-outline hover:text-red-500 transition-colors p-1 hover:bg-red-50 rounded-lg">
+                              <span className="material-symbols-outlined text-sm">delete</span>
+                            </button>
+                          </div>
                         </td>
 
                       </tr>
@@ -586,7 +610,8 @@ export default function CRMDashboard() {
               <table className="w-full text-left table-fixed border-collapse border border-surface-container">
                 <thead>
                   <tr className="bg-surface/50 text-[10px] font-black uppercase tracking-wider text-outline">
-                    <th className="px-8 py-5 w-[28%] text-center border border-surface-container">Property</th>
+                    <th className="px-4 py-5 w-[8%] text-center border border-surface-container">ID</th>
+                    <th className="px-8 py-5 w-[24%] text-center border border-surface-container">Property</th>
                     <th className="px-8 py-5 w-[8%] text-center border border-surface-container">Date</th>
                     <th className="px-8 py-5 w-[17%] text-center border border-surface-container">Location</th>
                     <th className="px-8 py-5 w-[12%] text-center border border-surface-container">Status</th>
@@ -598,6 +623,9 @@ export default function CRMDashboard() {
                 <tbody className="divide-y divide-surface-container">
                   {filteredProperties.map((p: any) => (
                     <tr key={p.id} className="hover:bg-surface transition-colors">
+                      <td className="px-2 py-5 text-[10px] font-mono font-black text-primary/40 text-center border border-surface-container break-all">
+                        {p.id.split('-')[0]}...
+                      </td>
                       <td className="px-8 py-5 border border-surface-container">
                         <div className="flex items-center gap-4">
                           <div className="relative">

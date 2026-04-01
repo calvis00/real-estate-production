@@ -36,6 +36,8 @@ router.get('/:id', async (req, res) => {
 router.post('/', authMiddleware, upload.array('assets', 15), async (req: any, res) => {
   try {
     // 1. Validate Text Data
+    console.log('--- Property Creation Debug ---');
+    console.log('Body:', req.body);
     const validatedData = CreatePropertySchema.parse(req.body);
 
     // 2. Extract Assets from Cloudinary
