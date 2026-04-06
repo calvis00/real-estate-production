@@ -33,6 +33,30 @@ export const adminWriteLimiter = rateLimit({
   message: { message: 'Too many admin write actions. Please slow down.' },
 });
 
+export const communicationReadLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 300,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many communication read requests. Please retry shortly.' },
+});
+
+export const communicationWriteLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 160,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many communication write actions. Please slow down.' },
+});
+
+export const communicationSignalLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000,
+  max: 500,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { message: 'Too many call signal events. Please retry.' },
+});
+
 export const createCsrfToken = () => crypto.randomBytes(24).toString('hex');
 
 export const requireCsrfToken = (req: any, res: any, next: any) => {

@@ -31,6 +31,8 @@ export default function PropertyDetailPage() {
   const [loading, setLoading] = useState(true);
   const [activeImage, setActiveImage] = useState(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
+  const [chatLoading, setChatLoading] = useState(false);
+  const [chatError, setChatError] = useState('');
 
   // Sync scroll lock and keyboard events
   useEffect(() => {
@@ -90,6 +92,68 @@ export default function PropertyDetailPage() {
 
   const displayLocation = `${property.locality}, ${property.city}`;
   const displayPrice = formatPrice(property.price);
+
+  async function handleChatAboutProperty() {
+    if (!property?.id) return;
+    setChatLoading(true);
+    setChatError('');
+
+    try {
+      const existingRes = await fetch(
+        apiUrl(`/api/communications/conversations?propertyId=${encodeURIComponent(property.id)}`),
+        { credentials: 'include' },
+      );
+
+      if (existingRes.status === 401) {
+        router.push('/crm/login');
+        return;
+      }
+      if (!existingRes.ok) {
+        throw new Error('Unable to load conversations');
+      }
+
+      const existingData = await existingRes.json();
+      const existingConversation = Array.isArray(existingData?.data) ? existingData.data[0] : null;
+      let conversationId = existingConversation?.id as string | undefined;
+
+      if (!conversationId) {
+        const createRes = await fetch(apiUrl('/api/communications/conversations'), {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            propertyId: property.id,
+            subject: `Chat about ${property.title}`,
+            clientName: '',
+            clientEmail: '',
+            clientPhone: '',
+          }),
+        });
+
+        if (createRes.status === 401) {
+          router.push('/crm/login');
+          return;
+        }
+        if (!createRes.ok) {
+          throw new Error('Unable to create conversation');
+        }
+
+        const createData = await createRes.json();
+        conversationId = createData?.data?.id;
+      }
+
+      if (!conversationId) {
+        throw new Error('Conversation id missing');
+      }
+
+      router.push(`/crm/chat?conversationId=${encodeURIComponent(conversationId)}&propertyId=${encodeURIComponent(property.id)}`);
+    } catch (error) {
+      console.error(error);
+      setChatError('Could not start property chat right now. Please try again.');
+    } finally {
+      setChatLoading(false);
+    }
+  }
 
   return (
     <div className="min-h-screen bg-background text-on-surface font-body overflow-x-hidden">
@@ -238,7 +302,21 @@ export default function PropertyDetailPage() {
                             <p className="text-[10px] font-bold text-outline uppercase tracking-widest leading-relaxed"> This exclusive property has been acquired. <br/> Explore our other estates. </p>
                         </div>
                     ) : (
-                        <LeadForm buttonText="SEND ENQUIRY" propertyId={property.id} />
+                        <>
+                          <LeadForm buttonText="SEND ENQUIRY" propertyId={property.id} />
+                          <div className="mt-6 space-y-2">
+                            <button
+                              onClick={handleChatAboutProperty}
+                              disabled={chatLoading}
+                              className="w-full rounded-2xl border border-primary/20 bg-primary/5 px-5 py-3 text-xs font-black uppercase tracking-[0.2em] text-primary transition hover:bg-primary/10 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                              {chatLoading ? 'Starting Chat...' : 'Chat About This Property'}
+                            </button>
+                            {chatError && (
+                              <p className="text-center text-[10px] font-bold uppercase tracking-wider text-rose-600">{chatError}</p>
+                            )}
+                          </div>
+                        </>
                     )}
 
                     <div className="mt-12 pt-12 border-t border-surface-container space-y-6">
