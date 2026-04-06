@@ -53,7 +53,7 @@ app.use('/api', apiLimiter);
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/admin', adminWriteLimiter, adminOpsRoutes);
 app.use('/api/communications', adminWriteLimiter, communicationRoutes);
-app.use('/api/chatbot', publicFormLimiter, chatbotRoutes);
+app.use('/api/chatbot', chatbotRoutes);
 app.use('/api/properties', adminWriteLimiter, propertyRoutes);
 app.use('/api/leads', publicFormLimiter, adminWriteLimiter, leadRoutes);
 app.use('/api/contacts', publicFormLimiter, adminWriteLimiter, contactRoutes);

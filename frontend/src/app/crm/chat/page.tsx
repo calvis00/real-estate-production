@@ -127,6 +127,7 @@ function CrmChatPageContent() {
   const [unreadByConversation, setUnreadByConversation] = useState<Record<string, number>>({});
   const [realtimeConnected, setRealtimeConnected] = useState(false);
   const eventSourceRef = useRef<EventSource | null>(null);
+  const messagesContainerRef = useRef<HTMLDivElement | null>(null);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
@@ -638,6 +639,11 @@ function CrmChatPageContent() {
     loadLatestCall(selectedConversationId);
     setUnreadByConversation((current) => ({ ...current, [selectedConversationId]: 0 }));
   }, [selectedConversationId]);
+
+  useEffect(() => {
+    if (!messagesContainerRef.current) return;
+    messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight;
+  }, [messages, selectedConversationId]);
 
   useEffect(() => {
     const params = new URLSearchParams();
@@ -1200,7 +1206,7 @@ function CrmChatPageContent() {
           ) : error ? (
             <p className="text-sm text-rose-700">{error}</p>
           ) : (
-            <div className="max-h-[56vh] space-y-2 overflow-y-auto pr-1">
+            <div ref={messagesContainerRef} className="max-h-[56vh] space-y-2 overflow-y-auto pr-1">
               {messages.length ? (
                 messages.map((message) => (
                   <div key={message.id} className="rounded-2xl border border-surface-container bg-background/40 px-3 py-2">

@@ -11,6 +11,16 @@ export type ConversationCreateInput = {
   subject?: string | undefined;
 };
 
+export type PublicHandoffConversationInput = {
+  propertyId: string;
+  clientName?: string | undefined;
+  clientEmail?: string | undefined;
+  clientPhone?: string | undefined;
+  subject?: string | undefined;
+  initialUserMessage?: string | undefined;
+  botReply?: string | undefined;
+};
+
 export type MessageCreateInput = {
   conversationId: string;
   senderEmail: string;
@@ -142,14 +152,44 @@ export async function ensureCommunicationTables() {
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_comm_messages_conversation ON communication_messages(conversation_id, created_at DESC);`);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_comm_calls_conversation ON communication_calls(conversation_id, created_at DESC);`);
   await pool.query(`CREATE INDEX IF NOT EXISTS idx_comm_call_recordings_call ON communication_call_recordings(call_id, created_at DESC);`);
+
+  await pool.query(`
+    ALTER TABLE communication_conversations
+    ADD COLUMN IF NOT EXISTS channel VARCHAR(32) NOT NULL DEFAULT 'CRM';
+  `);
+  await pool.query(`
+    ALTER TABLE communication_conversations
+    ADD COLUMN IF NOT EXISTS public_token VARCHAR(96);
+  `);
+  await pool.query(`
+    ALTER TABLE communication_conversations
+    ADD COLUMN IF NOT EXISTS handoff_status VARCHAR(24) NOT NULL DEFAULT 'BOT';
+  `);
+  await pool.query(`CREATE INDEX IF NOT EXISTS idx_comm_conversations_public_token ON communication_conversations(public_token);`);
 }
 
 export function createConversationId() {
   return `conv_${crypto.randomBytes(12).toString('hex')}`;
 }
 
+export function createPublicConversationToken() {
+  return crypto.randomBytes(24).toString('hex');
+}
+
 export function createCallId() {
   return `call_${crypto.randomBytes(12).toString('hex')}`;
+}
+
+export async function listSupportAgentEmails() {
+  const result = await pool.query(
+    `SELECT DISTINCT LOWER(email) AS email
+     FROM users
+     WHERE UPPER(role) IN ('ADMIN', 'SALES')
+       AND email IS NOT NULL`,
+  );
+  return result.rows
+    .map((row: any) => String(row.email || '').toLowerCase())
+    .filter((email: string) => Boolean(email));
 }
 
 export async function propertyExists(propertyId: string) {
@@ -186,9 +226,104 @@ export async function createConversation(input: ConversationCreateInput) {
   return result.rows[0];
 }
 
+export async function createPublicHandoffConversation(input: PublicHandoffConversationInput) {
+  const conversationId = createConversationId();
+  const publicToken = createPublicConversationToken();
+  const systemEmail = 'website-bot@system.nearbyacres';
+  const supportEmails = await listSupportAgentEmails();
+
+  const result = await pool.query(
+    `INSERT INTO communication_conversations (
+      id, property_id, created_by_email, created_by_role, client_name, client_email, client_phone, subject,
+      status, last_message_at, channel, public_token, handoff_status, created_at, updated_at
+    ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, 'OPEN', NOW(), 'WEBSITE_CHATBOT', $9, 'BOT', NOW(), NOW())
+    RETURNING *`,
+    [
+      conversationId,
+      input.propertyId,
+      systemEmail,
+      'SYSTEM',
+      input.clientName || null,
+      input.clientEmail || null,
+      input.clientPhone || null,
+      input.subject || 'Website chatbot handoff',
+      publicToken,
+    ],
+  );
+
+  await pool.query(
+    `INSERT INTO communication_participants (conversation_id, user_email, role)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (conversation_id, user_email) DO NOTHING`,
+    [conversationId, systemEmail, 'SYSTEM'],
+  );
+
+  for (const email of supportEmails) {
+    await pool.query(
+      `INSERT INTO communication_participants (conversation_id, user_email, role)
+       VALUES ($1, $2, 'SALES')
+       ON CONFLICT (conversation_id, user_email) DO NOTHING`,
+      [conversationId, email],
+    );
+  }
+
+  if (input.initialUserMessage) {
+    await createMessage({
+      conversationId,
+      senderEmail: 'visitor@website.nearbyacres',
+      senderRole: 'CLIENT',
+      messageType: 'TEXT',
+      messageText: input.initialUserMessage,
+    });
+  }
+
+  if (input.botReply) {
+    await createMessage({
+      conversationId,
+      senderEmail: systemEmail,
+      senderRole: 'BOT',
+      messageType: 'TEXT',
+      messageText: input.botReply,
+      isSystem: true,
+    });
+  }
+
+  return {
+    conversation: result.rows[0],
+    publicToken,
+  };
+}
+
+export async function getPublicConversationByToken(conversationId: string, visitorToken: string) {
+  const result = await pool.query(
+    `SELECT *
+     FROM communication_conversations
+     WHERE id = $1
+       AND channel = 'WEBSITE_CHATBOT'
+       AND public_token = $2
+     LIMIT 1`,
+    [conversationId, visitorToken],
+  );
+  return result.rows[0] || null;
+}
+
+export async function listPublicConversationMessages(conversationId: string, afterId?: number, limit = 120) {
+  const cappedLimit = Math.min(300, Math.max(1, limit));
+  const result = await pool.query(
+    `SELECT *
+     FROM communication_messages
+     WHERE conversation_id = $1
+       AND ($2::bigint IS NULL OR id > $2::bigint)
+     ORDER BY id ASC
+     LIMIT $3`,
+    [conversationId, Number.isFinite(afterId as number) ? afterId : null, cappedLimit],
+  );
+  return result.rows;
+}
+
 export async function listConversationsForUser(userEmail: string, role: string, propertyId?: string) {
   const normalizedRole = String(role || '').toUpperCase();
-  const values: any[] = [userEmail];
+  const values: any[] = normalizedRole === 'ADMIN' ? [] : [userEmail];
   let query = `
     SELECT c.*, COALESCE(m.message_text, '') AS last_message_text,
            m.created_at AS last_message_created_at
@@ -298,6 +433,17 @@ export async function createMessage(input: MessageCreateInput) {
      WHERE id = $1`,
     [input.conversationId],
   );
+
+  if (['ADMIN', 'SALES'].includes(String(input.senderRole || '').toUpperCase())) {
+    await pool.query(
+      `UPDATE communication_conversations
+       SET handoff_status = 'AGENT', updated_at = NOW()
+       WHERE id = $1
+         AND channel = 'WEBSITE_CHATBOT'
+         AND handoff_status <> 'AGENT'`,
+      [input.conversationId],
+    );
+  }
 
   return result.rows[0];
 }

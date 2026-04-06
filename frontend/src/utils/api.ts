@@ -1,6 +1,15 @@
 const getFallbackApiBaseUrl = () => {
   if (typeof window !== 'undefined') {
-    return `${window.location.protocol}//${window.location.hostname}:8081`;
+    const host = window.location.hostname;
+    const isLocalHost = host === 'localhost' || host === '127.0.0.1';
+
+    // Local development runs backend separately on port 8081.
+    if (isLocalHost) {
+      return 'http://localhost:8081';
+    }
+
+    // Production/staging should use same-origin reverse proxy.
+    return window.location.origin;
   }
 
   return 'http://localhost:8081';

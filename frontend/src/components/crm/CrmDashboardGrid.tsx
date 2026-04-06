@@ -1535,6 +1535,13 @@ export default function CrmDashboardGrid({ initialTab }: { initialTab?: ActiveTa
                   )}
                 </button>
               ))}
+              <button
+                type="button"
+                onClick={() => router.push('/crm/chat')}
+                className="relative rounded-full px-4 py-2 text-xs font-bold uppercase tracking-widest text-outline transition hover:text-primary"
+              >
+                Chat
+              </button>
             </div>
           </div>
           <button
