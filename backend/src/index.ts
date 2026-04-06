@@ -10,6 +10,7 @@ import listingRequestRoutes from './routes/listingRequest.js';
 import authRoutes from './routes/auth.js';
 import adminOpsRoutes from './routes/adminOps.js';
 import communicationRoutes from './routes/communication.js';
+import chatbotRoutes from './routes/chatbot.js';
 import { adminWriteLimiter, apiLimiter, authLimiter, publicFormLimiter } from './middleware/security.js';
 import { ensureSecurityTables } from './services/securityStore.js';
 import {
@@ -52,6 +53,7 @@ app.use('/api', apiLimiter);
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/admin', adminWriteLimiter, adminOpsRoutes);
 app.use('/api/communications', adminWriteLimiter, communicationRoutes);
+app.use('/api/chatbot', publicFormLimiter, chatbotRoutes);
 app.use('/api/properties', adminWriteLimiter, propertyRoutes);
 app.use('/api/leads', publicFormLimiter, adminWriteLimiter, leadRoutes);
 app.use('/api/contacts', publicFormLimiter, adminWriteLimiter, contactRoutes);

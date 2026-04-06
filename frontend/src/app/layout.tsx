@@ -9,6 +9,7 @@ export const metadata: Metadata = {
 
 import Navbar from "@/components/Navbar";
 import GlobalModalProvider from "@/components/GlobalModalProvider";
+import UnifiedCommWidget from "@/components/UnifiedCommWidget";
 import { LangProvider } from "@/i18n/LangContext";
 
 export default function RootLayout({
@@ -28,6 +29,7 @@ export default function RootLayout({
           <GlobalModalProvider>
             <Navbar />
             {children}
+            <UnifiedCommWidget />
           </GlobalModalProvider>
         </LangProvider>
       </body>
