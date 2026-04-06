@@ -15,8 +15,16 @@ export const apiUrl = (path: string) => {
 };
 
 export const getCsrfToken = () => {
+  const csrfFromStorage = (() => {
+    if (typeof window === 'undefined') {
+      return '';
+    }
+
+    return window.localStorage.getItem('crmCsrfToken') || '';
+  })();
+
   if (typeof document === 'undefined') {
-    return '';
+    return csrfFromStorage;
   }
 
   const tokenCookie = document.cookie
@@ -24,10 +32,14 @@ export const getCsrfToken = () => {
     .find((entry) => entry.startsWith('csrfToken='));
 
   if (!tokenCookie) {
-    return '';
+    return csrfFromStorage;
   }
 
-  return decodeURIComponent(tokenCookie.split('=').slice(1).join('='));
+  const cookieToken = decodeURIComponent(tokenCookie.split('=').slice(1).join('='));
+  if (cookieToken && typeof window !== 'undefined') {
+    window.localStorage.setItem('crmCsrfToken', cookieToken);
+  }
+  return cookieToken || csrfFromStorage;
 };
 
 export const withCsrfHeader = (headers: Record<string, string> = {}) => {

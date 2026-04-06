@@ -27,6 +27,9 @@ export default function AdminLoginPage() {
       const data = await res.json();
 
       if (res.ok) {
+        if (typeof window !== 'undefined' && data?.csrfToken) {
+          window.localStorage.setItem('crmCsrfToken', data.csrfToken);
+        }
         router.push('/crm/dashboard');
       } else {
         setError(data.message || 'Login failed');

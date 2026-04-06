@@ -8,7 +8,9 @@ import leadRoutes from './routes/lead.js';
 import contactRoutes from './routes/contact.js';
 import listingRequestRoutes from './routes/listingRequest.js';
 import authRoutes from './routes/auth.js';
+import adminOpsRoutes from './routes/adminOps.js';
 import { adminWriteLimiter, apiLimiter, authLimiter, publicFormLimiter } from './middleware/security.js';
+import { ensureSecurityTables } from './services/securityStore.js';
 
 dotenv.config();
 
@@ -41,6 +43,7 @@ app.use('/api', apiLimiter);
 
 // Routes
 app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/admin', adminWriteLimiter, adminOpsRoutes);
 app.use('/api/properties', adminWriteLimiter, propertyRoutes);
 app.use('/api/leads', publicFormLimiter, adminWriteLimiter, leadRoutes);
 app.use('/api/contacts', publicFormLimiter, adminWriteLimiter, contactRoutes);
@@ -60,8 +63,18 @@ app.use((err: any, req: any, res: any, next: any) => {
   res.status(500).json({ message: 'Internal server error' });
 });
 
-app.listen(port, () => {
-  console.log(`Server is running on port ${port}`);
-});
+async function startServer() {
+  try {
+    await ensureSecurityTables();
+    app.listen(port, () => {
+      console.log(`Server is running on port ${port}`);
+    });
+  } catch (error) {
+    console.error('Failed to initialize server:', error);
+    process.exit(1);
+  }
+}
+
+startServer();
 
 export default app;

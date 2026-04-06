@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { db } from '../db/index.js';
 import { contacts, leads } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
-import { authMiddleware } from '../middleware/auth.js';
+import { authMiddleware, canEditField, requireRoles } from '../middleware/auth.js';
 import { requireCsrfToken } from '../middleware/security.js';
 import { validateBody } from '../middleware/validate.js';
 import { CreateContactSchema, UpdateContactSchema } from '../schemas/crm.js';
@@ -23,7 +23,7 @@ router.post('/', validateBody(CreateContactSchema), async (req, res) => {
 });
 
 // GET /api/contacts (Admin only)
-router.get('/', authMiddleware, async (req, res) => {
+router.get('/', authMiddleware, requireRoles(['ADMIN', 'SALES', 'VIEWER']), async (req, res) => {
   try {
     const data = await db.select().from(contacts);
     res.json({ data });
@@ -33,12 +33,18 @@ router.get('/', authMiddleware, async (req, res) => {
 });
 
 // Update contact
-router.put('/:id', authMiddleware, requireCsrfToken, validateBody(UpdateContactSchema), async (req, res) => {
+router.put('/:id', authMiddleware, requireRoles(['ADMIN', 'SALES']), requireCsrfToken, validateBody(UpdateContactSchema), async (req: any, res) => {
   const { id } = req.params;
   if (!Number.isInteger(Number(id))) {
     return res.status(400).json({ message: 'Invalid contact id' });
   }
-  const updateData = { ...(sanitizeCrmPayload(req.body ?? {}) as any), updatedAt: new Date() };
+  const sanitizedBody = sanitizeCrmPayload(req.body ?? {}) as any;
+  const role = String(req.user?.role || '').toUpperCase();
+  const filteredBody =
+    role === 'ADMIN'
+      ? sanitizedBody
+      : Object.fromEntries(Object.entries(sanitizedBody).filter(([field]) => canEditField(role, field)));
+  const updateData = { ...(filteredBody as any), updatedAt: new Date() };
   try {
     await db.update(contacts).set(updateData).where(eq(contacts.id, Number(id)));
     res.json({ message: 'Contact updated successfully' });
@@ -48,7 +54,7 @@ router.put('/:id', authMiddleware, requireCsrfToken, validateBody(UpdateContactS
 });
 
 // Delete contact
-router.delete('/:id', authMiddleware, requireCsrfToken, async (req, res) => {
+router.delete('/:id', authMiddleware, requireRoles(['ADMIN', 'SALES']), requireCsrfToken, async (req, res) => {
   const { id } = req.params;
   if (!Number.isInteger(Number(id))) {
     return res.status(400).json({ message: 'Invalid contact id' });
@@ -62,7 +68,7 @@ router.delete('/:id', authMiddleware, requireCsrfToken, async (req, res) => {
 });
 
 // Convert contact to lead
-router.post('/:id/convert', authMiddleware, requireCsrfToken, async (req, res) => {
+router.post('/:id/convert', authMiddleware, requireRoles(['ADMIN', 'SALES']), requireCsrfToken, async (req, res) => {
   const { id } = req.params;
   if (!Number.isInteger(Number(id))) {
     return res.status(400).json({ message: 'Invalid contact id' });

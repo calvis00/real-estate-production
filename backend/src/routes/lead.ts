@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { db } from '../db/index.js';
 import { leads } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
-import { authMiddleware } from '../middleware/auth.js';
+import { authMiddleware, canEditField, requireRoles } from '../middleware/auth.js';
 import { requireCsrfToken } from '../middleware/security.js';
 import { validateBody } from '../middleware/validate.js';
 import { CreateLeadSchema, UpdateLeadSchema } from '../schemas/crm.js';
@@ -23,7 +23,7 @@ router.post('/', validateBody(CreateLeadSchema), async (req, res) => {
 });
 
 // GET /api/leads (Admin only)
-router.get('/', authMiddleware, async (req, res) => {
+router.get('/', authMiddleware, requireRoles(['ADMIN', 'SALES', 'VIEWER']), async (req, res) => {
     console.log('GET /api/leads - Auth Passed');
     try {
         const allLeads = await db.select().from(leads);
@@ -35,19 +35,26 @@ router.get('/', authMiddleware, async (req, res) => {
 });
 
 // Update lead status
-router.put('/:id', authMiddleware, requireCsrfToken, validateBody(UpdateLeadSchema), async (req, res) => {
+router.put('/:id', authMiddleware, requireRoles(['ADMIN', 'SALES']), requireCsrfToken, validateBody(UpdateLeadSchema), async (req: any, res) => {
     const { id } = req.params;
     const leadId = Number(id);
     if (!Number.isInteger(leadId)) {
         return res.status(400).json({ message: 'Invalid lead id' });
     }
     const sanitizedBody = sanitizeCrmPayload(req.body ?? {});
+    const role = String(req.user?.role || '').toUpperCase();
+    const filteredBody =
+      role === 'ADMIN'
+        ? (sanitizedBody as any)
+        : Object.fromEntries(
+            Object.entries(sanitizedBody as any).filter(([field]) => canEditField(role, field)),
+          );
     const {
         customerName, phone, email, requirementText, propertyType,
         preferredLocation, budgetMin, budgetMax, status, priority,
         source, assignedTo, nextFollowUpDate, lastContactedAt,
         notes, tags, isConverted, convertedAt
-    } = sanitizedBody as any;
+    } = filteredBody as any;
 
     try {
         await db.update(leads)
@@ -80,7 +87,7 @@ router.put('/:id', authMiddleware, requireCsrfToken, validateBody(UpdateLeadSche
     }
 });
 
-router.delete('/:id', authMiddleware, requireCsrfToken, async (req, res) => {
+router.delete('/:id', authMiddleware, requireRoles(['ADMIN', 'SALES']), requireCsrfToken, async (req, res) => {
     const { id } = req.params;
     const leadId = Number(id);
     if (!Number.isInteger(leadId)) {

@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { db } from '../db/index.js';
 import { properties } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
-import { attachOptionalAdmin, authMiddleware } from '../middleware/auth.js';
+import { attachOptionalAdmin, authMiddleware, requireRoles } from '../middleware/auth.js';
 import { requireCsrfToken } from '../middleware/security.js';
 import { upload } from '../middleware/upload.js';
 import { CreatePropertySchema, UpdatePropertySchema } from '../schemas/property.js';
@@ -48,7 +48,7 @@ router.get('/:id', attachOptionalAdmin, async (req: any, res) => {
  * POST /api/properties
  * Creates a new property with multiple images and videos.
  */
-router.post('/', authMiddleware, requireCsrfToken, upload.array('assets', 15), async (req: any, res) => {
+router.post('/', authMiddleware, requireRoles(['ADMIN', 'SALES']), requireCsrfToken, upload.array('assets', 15), async (req: any, res) => {
   try {
     // 1. Validate Text Data
     console.log('--- Property Creation Debug ---');
@@ -92,7 +92,7 @@ router.post('/', authMiddleware, requireCsrfToken, upload.array('assets', 15), a
 });
 
 // PUT /api/properties/:id
-router.put('/:id', authMiddleware, requireCsrfToken, upload.array('assets', 15), async (req: any, res) => {
+router.put('/:id', authMiddleware, requireRoles(['ADMIN', 'SALES']), requireCsrfToken, upload.array('assets', 15), async (req: any, res) => {
     try {
         const id = sanitizePlainText(req.params.id) as string;
         const [existing] = await db.select().from(properties).where(eq(properties.id, id));
@@ -141,7 +141,7 @@ router.put('/:id', authMiddleware, requireCsrfToken, upload.array('assets', 15),
 });
 
 // PATCH /api/properties/:id/status
-router.patch('/:id/status', authMiddleware, requireCsrfToken, async (req, res) => {
+router.patch('/:id/status', authMiddleware, requireRoles(['ADMIN', 'SALES']), requireCsrfToken, async (req, res) => {
     try {
         const id = sanitizePlainText(req.params.id) as string;
         const status = sanitizePlainText(req.body?.status);
@@ -164,7 +164,7 @@ router.patch('/:id/status', authMiddleware, requireCsrfToken, async (req, res) =
 });
 
 // DELETE /api/properties/:id
-router.delete('/:id', authMiddleware, requireCsrfToken, async (req, res) => {
+router.delete('/:id', authMiddleware, requireRoles(['ADMIN', 'SALES']), requireCsrfToken, async (req, res) => {
     try {
         const id = sanitizePlainText(req.params.id) as string;
         const [deleted] = await db.delete(properties).where(eq(properties.id, id)).returning();

@@ -68,7 +68,7 @@ export default function LandingPage() {
     <main className="min-h-screen">
 
       {/* ── Hero ── */}
-      <header className="hero-section flex items-center justify-center px-4 relative">
+      <header className="hero-section relative flex items-center justify-center px-4">
         <div className="hero-overlay" />
         <div className="relative z-10 w-full max-w-4xl text-center flex flex-col items-center">
 
@@ -76,18 +76,18 @@ export default function LandingPage() {
             {t('hero_tag')}
           </p>
 
-          <h1 className="text-white text-4xl md:text-6xl font-extrabold font-headline mb-4 text-shadow tracking-tight">
+          <h1 className="mb-3 text-3xl font-extrabold font-headline tracking-tight text-white text-shadow sm:text-4xl md:mb-4 md:text-6xl">
             {t('hero_h1_1')}{' '}
             <span className={ta('text-secondary')}>{t('hero_h1_accent')}</span>{' '}
             {t('hero_h1_2')}
           </h1>
 
-          <p className={ta('text-white/80 text-base md:text-lg mb-10 font-medium')}>
+          <p className={ta('mb-6 text-base font-medium text-white/80 sm:mb-10 md:text-lg')}>
             {t('hero_sub')}
           </p>
 
           {/* Search Card */}
-          <div className="bg-black/50 p-2 rounded-2xl backdrop-blur-lg golden-edge mx-auto w-full max-w-3xl">
+          <div className="mx-auto w-full max-w-3xl rounded-2xl bg-black/50 p-2 backdrop-blur-lg golden-edge">
             <div className="bg-background rounded-xl overflow-hidden">
 
               {/* Tabs */}
@@ -96,7 +96,7 @@ export default function LandingPage() {
                   <button
                     key={tab.id}
                     onClick={() => setActiveSearchTab(tab.id)}
-                    className={ta(`flex-1 py-4 text-sm font-bold transition-all ${
+                    className={ta(`flex-1 py-3 text-xs font-bold transition-all sm:py-4 sm:text-sm ${
                       activeSearchTab === tab.id ? 'search-tab-active' : 'text-gray-500 hover:text-primary'
                     }`)}
                   >
@@ -105,14 +105,14 @@ export default function LandingPage() {
                 ))}
               </div>
 
-              <div className="p-8 md:p-12 space-y-10">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-10 items-start">
+              <div className="space-y-7 p-5 sm:space-y-8 sm:p-8 md:space-y-10 md:p-12">
+                <div className="grid grid-cols-1 items-start gap-x-12 gap-y-6 sm:gap-y-8 md:grid-cols-2 md:gap-y-10">
 
                   <div className="space-y-3">
                     <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary/50 ml-1">{t('field_district')}</label>
                     <div className="relative group">
                       <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-primary/40 group-focus-within:text-primary transition-colors">location_on</span>
-                      <select id="city-select" className="w-full pl-12 pr-4 py-4 bg-surface/50 border border-surface-container rounded-2xl focus:border-secondary focus:bg-surface outline-none transition-all text-sm font-bold appearance-none shadow-sm">
+                      <select id="city-select" className="w-full appearance-none rounded-2xl border border-surface-container bg-surface/50 py-3.5 pl-12 pr-4 text-sm font-bold shadow-sm outline-none transition-all focus:border-secondary focus:bg-surface sm:py-4">
                         <option value="">{t('field_district_placeholder')}</option>
                         {tamilDistricts.map(city => <option key={city} value={city}>{city}</option>)}
                       </select>
@@ -123,7 +123,7 @@ export default function LandingPage() {
                     <label className="text-[10px] font-bold uppercase tracking-[0.2em] text-primary/50 ml-1">{t('field_type')}</label>
                     <div className="relative group">
                       <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-primary/40 group-focus-within:text-primary transition-colors">home_work</span>
-                      <select id="property-type" className="w-full pl-12 pr-4 py-4 bg-surface/50 border border-surface-container rounded-2xl focus:border-secondary focus:bg-surface outline-none transition-all text-sm font-bold appearance-none shadow-sm">
+                      <select id="property-type" className="w-full appearance-none rounded-2xl border border-surface-container bg-surface/50 py-3.5 pl-12 pr-4 text-sm font-bold shadow-sm outline-none transition-all focus:border-secondary focus:bg-surface sm:py-4">
                         <option value="">{t('field_type_placeholder')}</option>
                         <option value="Apartment">{t('field_type_apartment')}</option>
                         <option value="Villa">{t('field_type_villa')}</option>
@@ -139,7 +139,7 @@ export default function LandingPage() {
                       <div className="relative group">
                         <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-primary/40 group-focus-within:text-primary transition-colors">person</span>
                         <input id="name-input" type="text" placeholder={t('field_name_placeholder')}
-                          className="w-full pl-12 pr-4 py-4 bg-surface border border-slate-300 rounded-2xl focus:border-secondary outline-none transition-all text-sm font-bold shadow-sm" />
+                          className="w-full rounded-2xl border border-slate-300 bg-surface py-3.5 pl-12 pr-4 text-sm font-bold shadow-sm outline-none transition-all focus:border-secondary sm:py-4" />
                       </div>
                     </div>
 
@@ -148,7 +148,7 @@ export default function LandingPage() {
                       <div className="relative group">
                         <span className="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-primary/40 group-focus-within:text-primary transition-colors">call</span>
                         <input id="mobile-input" type="tel" placeholder="+91 98XXX XXXXX"
-                          className="w-full pl-12 pr-4 py-4 bg-surface border border-slate-300 rounded-2xl focus:border-secondary outline-none transition-all text-sm font-bold shadow-sm" />
+                          className="w-full rounded-2xl border border-slate-300 bg-surface py-3.5 pl-12 pr-4 text-sm font-bold shadow-sm outline-none transition-all focus:border-secondary sm:py-4" />
                       </div>
                     </div>
 
@@ -161,7 +161,7 @@ export default function LandingPage() {
                   </>)}
                 </div>
 
-                <div className="pt-6">
+                <div className="pt-2 sm:pt-4 md:pt-6">
                   <button
                     onClick={async () => {
                       const citySelect  = document.getElementById('city-select')   as HTMLSelectElement;
@@ -189,7 +189,7 @@ export default function LandingPage() {
                         ? `/cities/${citySelect.value.toLowerCase()}`
                         : '/properties';
                     }}
-                    className="w-full py-5 bg-primary text-white font-extrabold rounded-2xl flex items-center justify-center gap-4 hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 active:scale-[0.98] group relative overflow-hidden shadow-lg"
+                    className="group relative flex w-full items-center justify-center gap-3 overflow-hidden rounded-2xl bg-primary py-4 font-extrabold text-white shadow-lg transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl active:scale-[0.98] sm:gap-4 sm:py-5"
                   >
                     <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
                     <span className="material-symbols-outlined text-secondary">search</span>
@@ -208,8 +208,8 @@ export default function LandingPage() {
       </header>
 
       {/* ── Trust Strip ── */}
-      <div className="bg-primary text-white py-5">
-        <div className="max-w-7xl mx-auto px-4 flex flex-wrap justify-center gap-8">
+      <div className="bg-primary py-5 text-white">
+        <div className="mx-auto flex max-w-7xl flex-wrap justify-center gap-4 px-4 sm:gap-8">
           {([
             { icon: 'verified',       key: 'trust_verified'  },
             { icon: 'support_agent',  key: 'trust_support'   },
@@ -225,7 +225,7 @@ export default function LandingPage() {
       </div>
 
       {/* ── Categories ── */}
-      <div className="bg-gradient-to-b from-background to-surface py-20">
+      <div className="bg-gradient-to-b from-background to-surface py-14 sm:py-16 md:py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <section className="mb-20">
             <div className="flex flex-col md:flex-row md:items-end justify-between mb-10">
@@ -237,14 +237,14 @@ export default function LandingPage() {
                 {t('cat_all_link')} <span className="material-symbols-outlined text-sm">arrow_forward</span>
               </a>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6">
+            <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-3 lg:grid-cols-5">
               {categoryItems.map(item => {
                 const count = properties.filter(p => p.category === item.id).length;
                 return (
                   <div
                     key={item.id}
                     onClick={() => setActiveCategory(activeCategory === item.id ? 'all' : item.id)}
-                    className={`bg-surface p-10 rounded-[2.5rem] border transition-all group text-center flex flex-col items-center cursor-pointer ${
+                    className={`group flex cursor-pointer flex-col items-center rounded-[1.8rem] border bg-surface p-6 text-center transition-all sm:rounded-[2.2rem] sm:p-8 lg:rounded-[2.5rem] lg:p-10 ${
                       activeCategory === item.id
                         ? 'border-secondary ring-2 ring-secondary/20'
                         : 'border-surface-container hover:border-secondary'
@@ -268,16 +268,16 @@ export default function LandingPage() {
       </div>
 
       {/* ── Listings ── */}
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+      <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
         <section className="mb-20">
-          <div className="flex items-center justify-between mb-8">
+          <div className="mb-8 flex items-center justify-between">
             <div>
               <h2 className={ta('text-2xl font-extrabold font-headline text-primary')}>
                 {t('listings_h2_1')} <span className="text-secondary">{t('listings_h2_accent')}</span>
               </h2>
               <p className="text-outline text-[10px] uppercase tracking-widest font-bold mt-1">{t('listings_sub')}</p>
             </div>
-            <div className="flex gap-2">
+            <div className="hidden gap-2 sm:flex">
               <button className="p-2 border border-surface-container rounded-full hover:bg-surface-container transition-colors">
                 <span className="material-symbols-outlined">chevron_left</span>
               </button>
@@ -292,14 +292,14 @@ export default function LandingPage() {
         </section>
 
         {/* ── Advisory ── */}
-        <div id="planning-home" className="bg-primary/5 py-32 rounded-[3rem]">
+        <div id="planning-home" className="rounded-[2rem] bg-primary/5 py-14 sm:rounded-[2.4rem] sm:py-20 lg:rounded-[3rem] lg:py-32">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
+            <div className="grid grid-cols-1 items-center gap-10 sm:gap-14 lg:grid-cols-2 lg:gap-20">
               <div>
                 <p className={ta('text-[10px] font-bold uppercase tracking-[0.3em] text-secondary mb-4')}>
                   {t('advisory_tag')}
                 </p>
-                <h3 className={ta('text-4xl font-extrabold font-headline text-primary mb-4 leading-tight')}>
+                <h3 className={ta('mb-4 text-3xl font-extrabold font-headline leading-tight text-primary sm:text-4xl')}>
                   {t('advisory_h3_1')} <span className="text-secondary">{t('advisory_h3_accent')}</span>
                 </h3>
                 <p className={ta('text-outline text-lg mb-2')}>{t('advisory_body')}</p>
@@ -317,7 +317,7 @@ export default function LandingPage() {
                   ))}
                 </div>
               </div>
-              <div className="bg-background p-8 rounded-3xl border border-surface-container shadow-xl">
+              <div className="rounded-3xl border border-surface-container bg-background p-5 shadow-xl sm:p-8">
                 <LeadForm />
               </div>
             </div>
