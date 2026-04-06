@@ -20,7 +20,7 @@ export default function Navbar() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between">
         <div className="flex items-center gap-4 sm:gap-8">
           <Link href="/" className="text-2xl font-extrabold font-headline text-primary tracking-tighter">
-            ABC<span className="text-secondary">.</span>
+            Nearby<span className="text-secondary">Acres</span>
           </Link>
           <div className="hidden md:flex items-center gap-6">
             <Link href="/" className="text-sm font-semibold hover:text-primary transition-colors">{t('nav_home')}</Link>

@@ -330,7 +330,7 @@ export default function LandingPage() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-12 border-b border-slate-700 pb-12">
             <div>
-              <a className="text-3xl font-extrabold font-headline tracking-tighter mb-3 block" href="#">ABC<span className="text-secondary">.</span></a>
+              <a className="text-3xl font-extrabold font-headline tracking-tighter mb-3 block" href="#">Nearby<span className="text-secondary">Acres</span></a>
               <p className={ta('text-white/70 text-sm leading-relaxed mb-6')}>{t('footer_tagline')}</p>
               <div className="flex gap-4">
                 <a className="w-10 h-10 rounded-full border border-slate-500/30 flex items-center justify-center hover:bg-secondary hover:text-primary transition-all" href="#">

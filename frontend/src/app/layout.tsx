@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Real Estate TN | Buy, Sell & Rent Properties in Tamil Nadu",
-  description: "Find premium apartments, villas, and plots in Chennai, Coimbatore, and across Tamil Nadu. The best lead generation platform for builders and channel partners.",
+  title: "NearbyAcres | Buy, Sell & Rent Properties in Tamil Nadu",
+  description: "NearbyAcres helps you find premium apartments, villas, and plots in Chennai, Coimbatore, and across Tamil Nadu.",
   keywords: ["real estate Chennai", "plots for sale OMR", "apartments in Porur", "rent in Tamil Nadu"],
 };
 

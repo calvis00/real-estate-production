@@ -95,7 +95,7 @@ export const translations = {
     footer_newsletter_sub: 'Get new listings & offers first.',
     footer_newsletter_placeholder: 'Email',
     footer_newsletter_btn: 'Join',
-    footer_copy: '© 2024 ABC Premium Real Estate · Built for Tamil Nadu',
+    footer_copy: '© 2026 NearbyAcres Premium Real Estate · Built for Tamil Nadu',
 
     // City page
     city_tag: 'Premium Real Estate Hub',
@@ -211,7 +211,7 @@ export const translations = {
     footer_newsletter_sub: 'புதிய திட்டங்கள், சிறப்பு சலுகைகள் உடனே தெரிந்துகொள்ளுங்கள்.',
     footer_newsletter_placeholder: 'மின்னஞ்சல்',
     footer_newsletter_btn: 'சேரு',
-    footer_copy: '© 2024 ABC Premium Real Estate · தமிழகத்திற்காக உருவாக்கப்பட்டது',
+    footer_copy: '© 2026 NearbyAcres Premium Real Estate · தமிழகத்திற்காக உருவாக்கப்பட்டது',
 
     // City page
     city_tag: 'தமிழகத்தின் நம்பகமான சொத்து தளம்',

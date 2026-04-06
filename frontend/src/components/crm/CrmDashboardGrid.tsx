@@ -1508,7 +1508,7 @@ export default function CrmDashboardGrid({ initialTab }: { initialTab?: ActiveTa
         <div className="flex w-full items-center justify-between px-8 py-4">
           <div className="flex items-center gap-6">
             <h2 className="whitespace-nowrap text-xl font-extrabold font-headline uppercase tracking-tighter text-primary">
-              CRM <span className="text-secondary">Portal</span>
+              NearbyAcres <span className="text-secondary">CRM</span>
             </h2>
             <div className="h-6 w-px bg-surface-container" />
             <div className="flex flex-wrap items-center gap-4">
@@ -1769,7 +1769,7 @@ export default function CrmDashboardGrid({ initialTab }: { initialTab?: ActiveTa
                       type="email"
                       value={newUserEmail}
                       onChange={(event) => setNewUserEmail(event.target.value)}
-                      placeholder="user@realestatetn.com"
+                      placeholder="user@nearbyacres.com"
                       className="rounded-xl border border-surface-container bg-white px-4 py-3 text-sm outline-none transition focus:border-primary"
                     />
                     <input
