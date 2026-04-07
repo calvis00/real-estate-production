@@ -52,12 +52,12 @@ app.use('/api', apiLimiter);
 // Routes
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/admin', adminWriteLimiter, adminOpsRoutes);
-app.use('/api/communications', adminWriteLimiter, communicationRoutes);
+app.use('/api/communications', communicationRoutes);
 app.use('/api/chatbot', chatbotRoutes);
-app.use('/api/properties', adminWriteLimiter, propertyRoutes);
-app.use('/api/leads', publicFormLimiter, adminWriteLimiter, leadRoutes);
-app.use('/api/contacts', publicFormLimiter, adminWriteLimiter, contactRoutes);
-app.use('/api/listing-requests', publicFormLimiter, adminWriteLimiter, listingRequestRoutes);
+app.use('/api/properties', propertyRoutes);
+app.use('/api/leads', publicFormLimiter, leadRoutes);
+app.use('/api/contacts', publicFormLimiter, contactRoutes);
+app.use('/api/listing-requests', publicFormLimiter, listingRequestRoutes);
 
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', message: 'Real Estate API is running' });

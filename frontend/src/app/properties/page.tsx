@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import PropertyCard from '@/components/PropertyCard';
 import { apiUrl } from '@/utils/api';
 
@@ -21,9 +22,27 @@ interface Property {
 }
 
 export default function PropertiesPage() {
+  const searchParams = useSearchParams();
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState('All');
+
+  useEffect(() => {
+    const categoryParam = (searchParams.get('category') || '').trim().toUpperCase();
+    if (!categoryParam) {
+      setFilter('All');
+      return;
+    }
+    const normalized =
+      categoryParam === 'APARTMENT' ? 'Apartment' :
+      categoryParam === 'VILLA' ? 'Villa' :
+      categoryParam === 'HOUSE' || categoryParam === 'INDIVIDUAL_HOUSE' ? 'Individual House' :
+      categoryParam === 'FARMHOUSE' ? 'Farmhouse' :
+      categoryParam === 'PLOT' ? 'Plot' :
+      categoryParam === 'COMMERCIAL' ? 'Commercial' :
+      'All';
+    setFilter(normalized);
+  }, [searchParams]);
 
   useEffect(() => {
     fetch(apiUrl('/api/properties'))
@@ -38,9 +57,19 @@ export default function PropertiesPage() {
       });
   }, []);
 
-  const filteredProperties = filter === 'All' 
-    ? properties 
-    : properties.filter(p => p.type.toLowerCase() === filter.toLowerCase() || (filter === 'Flats' && p.type === 'flat') || (filter === 'Plots' && p.type === 'plot') || (filter === 'Villas' && p.type === 'villa'));
+  const filteredProperties = filter === 'All'
+    ? properties
+    : properties.filter((p) => {
+        const type = String(p.type || '').toUpperCase();
+        const category = String(p.category || '').toUpperCase();
+        if (filter === 'Apartment') return type === 'APARTMENT' || category === 'APARTMENT' || type === 'FLAT';
+        if (filter === 'Villa') return type === 'VILLA' || category === 'VILLA';
+        if (filter === 'Individual House') return type === 'HOUSE' || category === 'HOUSE' || type === 'INDIVIDUAL_HOUSE';
+        if (filter === 'Farmhouse') return type === 'FARMHOUSE' || category === 'FARMHOUSE';
+        if (filter === 'Plot') return type === 'PLOT' || category === 'PLOT' || type === 'LAND';
+        if (filter === 'Commercial') return type === 'COMMERCIAL' || category === 'COMMERCIAL';
+        return true;
+      });
 
   return (
     <div className="min-h-screen bg-background text-on-surface">
@@ -56,7 +85,7 @@ export default function PropertiesPage() {
             </p>
           </div>
           <div className="flex gap-3 mb-2 flex-wrap">
-            {['All', 'Plots', 'Flats', 'Villas'].map((tag) => (
+            {['All', 'Apartment', 'Villa', 'Individual House', 'Farmhouse', 'Plot', 'Commercial'].map((tag) => (
               <button 
                 key={tag} 
                 onClick={() => setFilter(tag)}

@@ -52,6 +52,7 @@ export default function UnifiedCommWidget() {
   const [formState, setFormState] = useState({
     name: '',
     phone: '',
+    email: '',
     message: '',
   });
   const [submitMessage, setSubmitMessage] = useState('');
@@ -66,6 +67,7 @@ export default function UnifiedCommWidget() {
   ]);
   const [showAgentForm, setShowAgentForm] = useState(false);
   const [handoffSession, setHandoffSession] = useState<HandoffSession | null>(null);
+  const [focusMessageId, setFocusMessageId] = useState<string>('');
   const [messages, setMessages] = useState<ChatMessage[]>([
     {
       id: 'welcome',
@@ -75,6 +77,7 @@ export default function UnifiedCommWidget() {
   ]);
   const messagesRef = useRef<HTMLDivElement | null>(null);
   const handoffStatusRef = useRef<'BOT' | 'AGENT'>('BOT');
+  const skipNextBottomScrollRef = useRef(false);
 
   const isCrmRoute = pathname.startsWith('/crm');
   const quickSuggestions = useMemo(() => {
@@ -154,8 +157,21 @@ export default function UnifiedCommWidget() {
 
   useEffect(() => {
     if (!messagesRef.current) return;
+    if (focusMessageId) {
+      const node = messagesRef.current.querySelector<HTMLElement>(`[data-message-id="${focusMessageId}"]`);
+      if (node) {
+        node.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        skipNextBottomScrollRef.current = true;
+        setFocusMessageId('');
+        return;
+      }
+    }
+    if (skipNextBottomScrollRef.current) {
+      skipNextBottomScrollRef.current = false;
+      return;
+    }
     messagesRef.current.scrollTop = messagesRef.current.scrollHeight;
-  }, [messages, isOpen]);
+  }, [messages, isOpen, focusMessageId]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -272,7 +288,7 @@ export default function UnifiedCommWidget() {
 
   const askBot = async (input: string, options?: { createLead?: boolean }) => {
     const cleanInput = stripUnsafeText(input);
-    if (!cleanInput) return;
+    if (!cleanInput) return false;
 
     setAsking(true);
     setSubmitError('');
@@ -291,7 +307,9 @@ export default function UnifiedCommWidget() {
           createLead: Boolean(options?.createLead),
           customerName: stripUnsafeText(formState.name),
           phone: stripUnsafeText(formState.phone),
-          email: '',
+          email: stripUnsafeText(formState.email),
+          handoffConversationId: handoffSession?.conversationId || '',
+          handoffVisitorToken: handoffSession?.visitorToken || '',
         }),
       });
 
@@ -313,15 +331,17 @@ export default function UnifiedCommWidget() {
           }
         | undefined;
       const reply = data?.reply || 'I could not process that. Please try again.';
+      const botMessageId = `${Date.now()}-b`;
       setMessages((current) => [
         ...current,
         {
-          id: `${Date.now()}-b`,
+          id: botMessageId,
           role: 'bot',
           text: reply,
           properties: Array.isArray(data?.properties) ? data?.properties : [],
         },
       ]);
+      setFocusMessageId(botMessageId);
 
       if (Array.isArray(data?.suggestions) && data.suggestions.length) {
         setSuggestions(data.suggestions);
@@ -342,15 +362,19 @@ export default function UnifiedCommWidget() {
       if (data?.handoffCreated) {
         setSubmitMessage('Agent callback request created successfully.');
       }
+      return true;
     } catch (error) {
+      const botErrorMessageId = `${Date.now()}-e`;
       setMessages((current) => [
         ...current,
         {
-          id: `${Date.now()}-e`,
+          id: botErrorMessageId,
           role: 'bot',
           text: error instanceof Error ? error.message : 'Could not respond now.',
         },
       ]);
+      setFocusMessageId(botErrorMessageId);
+      return false;
     } finally {
       setAsking(false);
     }
@@ -401,19 +425,25 @@ export default function UnifiedCommWidget() {
 
     const customerName = stripUnsafeText(formState.name);
     const phone = stripUnsafeText(formState.phone);
+    const email = stripUnsafeText(formState.email);
     const message = stripUnsafeText(formState.message);
 
-    if (!customerName || !phone || !message) {
+    if (!customerName || !phone || !email || !message) {
       setSubmitError('Please fill all fields before sending.');
       return;
     }
     setSubmitting(true);
-    await askBot(message, { createLead: true });
+    const requestCreated = await askBot(message, { createLead: true });
     setFormState({
       name: customerName,
       phone,
+      email,
       message: '',
     });
+    if (requestCreated) {
+      setShowAgentForm(false);
+      setSubmitMessage('');
+    }
     setSubmitting(false);
   };
 
@@ -466,24 +496,9 @@ export default function UnifiedCommWidget() {
               </button>
             )}
 
-            {!auth.loading && !auth.isAuthed && (
-              <button
-                type="button"
-                onClick={() => router.push('/crm/login')}
-                className="w-full rounded-2xl border border-secondary/30 bg-secondary/10 px-4 py-3 text-left transition hover:bg-secondary/20"
-              >
-                <p className="text-xs font-black uppercase tracking-[0.12em] text-primary">
-                  CRM Login
-                </p>
-                <p className="mt-1 text-[11px] font-semibold text-outline">
-                  Login to chat with clients in CRM
-                </p>
-              </button>
-            )}
-
             <div ref={messagesRef} className="max-h-64 space-y-2 overflow-y-auto rounded-2xl border border-surface-container/80 bg-white/70 p-3 backdrop-blur-sm">
               {messages.map((messageItem) => (
-                <div key={messageItem.id} className={`rounded-2xl px-3.5 py-2.5 ${messageItem.role === 'user' ? 'ml-6 border border-primary/20 bg-primary text-white shadow-sm' : 'mr-6 border border-surface-container bg-surface text-on-surface'}`}>
+                <div data-message-id={messageItem.id} key={messageItem.id} className={`rounded-2xl px-3.5 py-2.5 ${messageItem.role === 'user' ? 'ml-6 border border-primary/20 bg-primary text-white shadow-sm' : 'mr-6 border border-surface-container bg-surface text-on-surface'}`}>
                   <p className="text-xs font-semibold">{messageItem.text}</p>
                   {!!messageItem.properties?.length && (
                     <div className="mt-2 space-y-2">
@@ -516,7 +531,6 @@ export default function UnifiedCommWidget() {
                       type="button"
                       onClick={() => {
                         setQuestion(suggestion);
-                        void askBot(suggestion);
                       }}
                       className="rounded-full border border-primary/20 bg-white px-3 py-1.5 text-[11px] font-bold text-primary shadow-sm transition hover:-translate-y-0.5 hover:border-primary/40 hover:bg-primary/5"
                     >
@@ -595,6 +609,16 @@ export default function UnifiedCommWidget() {
                   setFormState((current) => ({ ...current, phone: event.target.value }))
                 }
                 placeholder="Phone"
+                className="w-full rounded-xl border border-surface-container bg-surface px-3 py-2 text-sm font-semibold text-on-surface outline-none transition focus:border-primary"
+              />
+              <input
+                required
+                type="email"
+                value={formState.email}
+                onChange={(event) =>
+                  setFormState((current) => ({ ...current, email: event.target.value }))
+                }
+                placeholder="Email"
                 className="w-full rounded-xl border border-surface-container bg-surface px-3 py-2 text-sm font-semibold text-on-surface outline-none transition focus:border-primary"
               />
               <textarea

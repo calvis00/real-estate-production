@@ -3,7 +3,7 @@ import { db } from '../db/index.js';
 import { contacts, leads } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
 import { authMiddleware, canEditField, requireRoles } from '../middleware/auth.js';
-import { requireCsrfToken } from '../middleware/security.js';
+import { publicSubmissionGuard, requireCsrfToken } from '../middleware/security.js';
 import { validateBody } from '../middleware/validate.js';
 import { CreateContactSchema, UpdateContactSchema } from '../schemas/crm.js';
 import { sanitizeCrmPayload } from '../utils/sanitize.js';
@@ -11,14 +11,14 @@ import { sanitizeCrmPayload } from '../utils/sanitize.js';
 const router = Router();
 
 // POST /api/contacts
-router.post('/', validateBody(CreateContactSchema), async (req, res) => {
+router.post('/', publicSubmissionGuard, validateBody(CreateContactSchema), async (req, res) => {
   try {
     const sanitizedBody = sanitizeCrmPayload(req.body ?? {});
     const [newContact] = await db.insert(contacts).values(sanitizedBody as any).returning();
-    console.log('New contact received:', newContact);
     res.status(201).json({ message: 'Contact submitted successfully', data: newContact });
   } catch (error) {
-    res.status(500).json({ message: 'Failed to submit contact', error });
+    console.error('Failed to submit contact:', error);
+    res.status(500).json({ message: 'Failed to submit contact' });
   }
 });
 
@@ -28,7 +28,8 @@ router.get('/', authMiddleware, requireRoles(['ADMIN', 'SALES', 'VIEWER']), asyn
     const data = await db.select().from(contacts);
     res.json({ data });
   } catch (error) {
-    res.status(500).json({ message: 'Failed to fetch contacts', error });
+    console.error('Failed to fetch contacts:', error);
+    res.status(500).json({ message: 'Failed to fetch contacts' });
   }
 });
 
@@ -49,7 +50,8 @@ router.put('/:id', authMiddleware, requireRoles(['ADMIN', 'SALES']), requireCsrf
     await db.update(contacts).set(updateData).where(eq(contacts.id, Number(id)));
     res.json({ message: 'Contact updated successfully' });
   } catch (error) {
-    res.status(500).json({ message: 'Failed to update contact', error });
+    console.error('Failed to update contact:', error);
+    res.status(500).json({ message: 'Failed to update contact' });
   }
 });
 
@@ -63,7 +65,8 @@ router.delete('/:id', authMiddleware, requireRoles(['ADMIN', 'SALES']), requireC
     await db.delete(contacts).where(eq(contacts.id, Number(id)));
     res.json({ message: 'Contact deleted successfully' });
   } catch (error) {
-    res.status(500).json({ message: 'Failed to delete contact', error });
+    console.error('Failed to delete contact:', error);
+    res.status(500).json({ message: 'Failed to delete contact' });
   }
 });
 
@@ -108,7 +111,7 @@ router.post('/:id/convert', authMiddleware, requireRoles(['ADMIN', 'SALES']), re
     res.json({ message: 'Contact converted to lead successfully' });
   } catch (error) {
     console.error('Conversion failed:', error);
-    res.status(500).json({ message: 'Failed to convert contact', error });
+    res.status(500).json({ message: 'Failed to convert contact' });
   }
 });
 

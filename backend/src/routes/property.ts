@@ -19,7 +19,8 @@ router.get('/', attachOptionalAdmin, async (req: any, res) => {
 
     res.json({ message: 'List of properties', data });
   } catch (error) {
-    res.status(500).json({ message: 'Failed to fetch properties', error });
+    console.error('Failed to fetch properties:', error);
+    res.status(500).json({ message: 'Failed to fetch properties' });
   }
 });
 
@@ -40,7 +41,8 @@ router.get('/:id', attachOptionalAdmin, async (req: any, res) => {
 
     res.json({ message: 'Property details', data: property });
   } catch (error) {
-    res.status(500).json({ message: 'Error fetching property detail', error });
+    console.error('Error fetching property detail:', error);
+    res.status(500).json({ message: 'Error fetching property detail' });
   }
 });
 
@@ -50,10 +52,7 @@ router.get('/:id', attachOptionalAdmin, async (req: any, res) => {
  */
 router.post('/', authMiddleware, requireRoles(['ADMIN', 'SALES']), requireCsrfToken, upload.array('assets', 15), async (req: any, res) => {
   try {
-    // 1. Validate Text Data
-    console.log('--- Property Creation Debug ---');
     const sanitizedBody = sanitizePropertyPayload(req.body ?? {});
-    console.log('Body:', sanitizedBody);
     const validatedData = CreatePropertySchema.parse(sanitizedBody as any);
 
     // 2. Extract Assets from Cloudinary
@@ -87,7 +86,7 @@ router.post('/', authMiddleware, requireRoles(['ADMIN', 'SALES']), requireCsrfTo
     if (error.name === 'ZodError') {
         return res.status(400).json({ message: 'Validation failed', errors: error.errors });
     }
-    res.status(500).json({ message: 'Failed to create property', error: error.message });
+    res.status(500).json({ message: 'Failed to create property' });
   }
 });
 
@@ -136,7 +135,7 @@ router.put('/:id', authMiddleware, requireRoles(['ADMIN', 'SALES']), requireCsrf
         if (error.name === 'ZodError') {
             return res.status(400).json({ message: 'Validation failed', errors: error.errors });
         }
-        res.status(500).json({ message: 'Update failed', error: error.message });
+        res.status(500).json({ message: 'Update failed' });
     }
 });
 
@@ -159,7 +158,8 @@ router.patch('/:id/status', authMiddleware, requireRoles(['ADMIN', 'SALES']), re
 
         res.json({ message: `Property status updated to ${status}`, data: updated });
     } catch (error: any) {
-        res.status(500).json({ message: 'Status update failed', error: error.message });
+        console.error('Status update failed:', error);
+        res.status(500).json({ message: 'Status update failed' });
     }
 });
 
@@ -171,7 +171,8 @@ router.delete('/:id', authMiddleware, requireRoles(['ADMIN', 'SALES']), requireC
         if (!deleted) return res.status(404).json({ message: 'Property not found' });
         res.json({ message: 'Property deleted permanently', data: deleted });
     } catch (error: any) {
-        res.status(500).json({ message: 'Deletion failed', error: error.message });
+        console.error('Deletion failed:', error);
+        res.status(500).json({ message: 'Deletion failed' });
     }
 });
 

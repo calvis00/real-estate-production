@@ -22,6 +22,7 @@ type ConversationRow = {
   subject: string | null;
   client_name: string | null;
   client_email: string | null;
+  client_phone?: string | null;
   status: string;
   last_message_at: string | null;
   last_message_text: string | null;
@@ -100,6 +101,23 @@ function formatTime(value?: string) {
   });
 }
 
+function extractVisitorDetailsFromMessage(text?: string | null) {
+  const source = String(text || '');
+  if (!source.toLowerCase().includes('agent callback request submitted')) {
+    return null;
+  }
+
+  const nameMatch = source.match(/Name:\s*([^]*?)\s+Phone:/i);
+  const phoneMatch = source.match(/Phone:\s*([^]*?)\s+Email:/i);
+  const emailMatch = source.match(/Email:\s*([^]*?)\s+Requirement:/i);
+
+  return {
+    name: nameMatch?.[1]?.trim() || '',
+    phone: phoneMatch?.[1]?.trim() || '',
+    email: emailMatch?.[1]?.trim() || '',
+  };
+}
+
 function CrmChatPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -112,6 +130,7 @@ function CrmChatPageContent() {
   const [conversations, setConversations] = useState<ConversationRow[]>([]);
   const [selectedConversationId, setSelectedConversationId] = useState(initialConversationId);
   const [selectedPropertyId, setSelectedPropertyId] = useState(initialPropertyId);
+  const [selectedConversationMeta, setSelectedConversationMeta] = useState<ConversationRow | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [draft, setDraft] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -157,18 +176,36 @@ function CrmChatPageContent() {
         router.push('/crm/login');
         return;
       }
-      if (!res.ok) throw new Error('Unable to load conversations');
+      if (!res.ok) {
+        const payload = await res.json().catch(() => null);
+        setConversations([]);
+        setError(payload?.message || 'Unable to load conversations.');
+        return;
+      }
       const data = await res.json();
       const rows = (data?.data || []) as ConversationRow[];
       setConversations(rows);
 
-      if (!selectedConversationId && rows.length && selectFirstIfEmpty) {
+      const hasSelectedConversation = rows.some((row) => row.id === selectedConversationId);
+      if (selectedConversationId && !hasSelectedConversation) {
+        if (rows.length) {
+          const first = rows[0];
+          setSelectedConversationId(first.id);
+          setSelectedPropertyId(first.property_id || '');
+        } else {
+          setSelectedConversationId('');
+          setSelectedPropertyId('');
+          setMessages([]);
+          setParticipants([]);
+          setTypingRows([]);
+          setSelectedConversationMeta(null);
+        }
+      } else if (!selectedConversationId && rows.length && selectFirstIfEmpty) {
         const first = rows[0];
         setSelectedConversationId(first.id);
         setSelectedPropertyId(first.property_id || '');
       }
     } catch (loadErr) {
-      console.error(loadErr);
       setError('Failed to load conversations.');
     } finally {
       setLoadingConversations(false);
@@ -194,6 +231,7 @@ function CrmChatPageContent() {
     if (!conversationId) {
       setParticipants([]);
       setTypingRows([]);
+      setSelectedConversationMeta(null);
       return;
     }
     try {
@@ -203,8 +241,10 @@ function CrmChatPageContent() {
       });
       if (!res.ok) return;
       const data = await res.json();
+      const conversation = (data?.data?.conversation || null) as ConversationRow | null;
       const fetchedParticipants = (data?.data?.participants || []) as ParticipantRow[];
       const fetchedTyping = (data?.data?.typing || []) as TypingRow[];
+      setSelectedConversationMeta(conversation);
       setParticipants(fetchedParticipants);
       setTypingRows(fetchedTyping);
 
@@ -613,14 +653,22 @@ function CrmChatPageContent() {
         router.push('/crm/login');
         return;
       }
+      if (res.status === 403 || res.status === 404) {
+        setSelectedConversationId('');
+        setSelectedPropertyId('');
+        setMessages([]);
+        setError('This conversation is no longer available for your account.');
+        return;
+      }
       if (!res.ok) {
-        throw new Error('Unable to load messages');
+        const payload = await res.json().catch(() => null);
+        setError(payload?.message || 'Unable to load messages.');
+        return;
       }
       const data = await res.json();
       setMessages((data?.data || []) as ChatMessage[]);
       setError('');
     } catch (loadErr) {
-      console.error(loadErr);
       setError('Failed to load conversation.');
     } finally {
       setLoadingMessages(false);
@@ -996,6 +1044,18 @@ function CrmChatPageContent() {
     currentCall?.status === 'RINGING' &&
     String(currentCall?.caller_email || '').toLowerCase() === currentUserEmail;
   const isCallConnected = currentCall?.status === 'CONNECTED';
+  const visitorDetailsFromMessages = useMemo(() => {
+    for (const message of messages) {
+      const parsed = extractVisitorDetailsFromMessage(message.message_text);
+      if (parsed && (parsed.name || parsed.phone || parsed.email)) {
+        return parsed;
+      }
+    }
+    return null;
+  }, [messages]);
+  const visitorName = selectedConversationMeta?.client_name || visitorDetailsFromMessages?.name || '-';
+  const visitorPhone = selectedConversationMeta?.client_phone || visitorDetailsFromMessages?.phone || '-';
+  const visitorEmail = selectedConversationMeta?.client_email || visitorDetailsFromMessages?.email || '-';
 
   return (
     <div className="min-h-screen bg-background px-4 py-6 text-on-surface md:px-8">
@@ -1039,14 +1099,16 @@ function CrmChatPageContent() {
                   loadConversationMessages(selectedConversationId);
                 }
               }}
-              className="rounded-xl bg-primary px-4 py-2 text-xs font-bold uppercase tracking-widest text-white"
+              className="inline-flex items-center justify-center rounded-xl bg-primary px-3 py-2 text-white"
+              aria-label="Refresh conversations and messages"
+              title="Refresh"
             >
-              Refresh
+              <span className="material-symbols-outlined text-lg">refresh</span>
             </button>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[360px_1fr]">
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[360px_minmax(0,1fr)_320px]">
           <div className="rounded-3xl border border-surface-container bg-surface p-3 shadow-sm">
             <div className="mb-2 px-2 pt-1">
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-outline">Conversations</p>
@@ -1304,6 +1366,39 @@ function CrmChatPageContent() {
             </button>
           </div>
         </div>
+          </div>
+
+          <div className="space-y-4 xl:sticky xl:top-6 xl:self-start">
+            <div className="rounded-3xl border border-surface-container bg-surface p-4 shadow-sm">
+              <p className="text-[10px] font-black uppercase tracking-[0.2em] text-outline">Visitor Profile</p>
+              {selectedConversationId ? (
+                <>
+                  <p className="mt-2 text-xs font-black uppercase tracking-wider text-primary">
+                    {selectedConversationMeta?.subject || 'Website Chat Conversation'}
+                  </p>
+                  <div className="mt-3 space-y-2 text-xs">
+                    <div className="rounded-xl border border-surface-container bg-background/30 px-3 py-2">
+                      <p className="text-[10px] font-black uppercase tracking-wider text-outline">Name</p>
+                      <p className="mt-1 font-semibold text-primary">{visitorName}</p>
+                    </div>
+                    <div className="rounded-xl border border-surface-container bg-background/30 px-3 py-2">
+                      <p className="text-[10px] font-black uppercase tracking-wider text-outline">Phone</p>
+                      <p className="mt-1 font-semibold text-primary">{visitorPhone}</p>
+                    </div>
+                    <div className="rounded-xl border border-surface-container bg-background/30 px-3 py-2">
+                      <p className="text-[10px] font-black uppercase tracking-wider text-outline">Email</p>
+                      <p className="mt-1 break-all font-semibold text-primary">{visitorEmail}</p>
+                    </div>
+                  </div>
+                  <div className="mt-3 rounded-xl border border-surface-container bg-background/20 px-3 py-2 text-[11px] text-outline">
+                    <p>Property: {selectedPropertyId ? `${selectedPropertyId.slice(0, 12)}...` : '-'}</p>
+                    <p className="mt-1">Conversation: {selectedConversationId.slice(0, 12)}...</p>
+                  </div>
+                </>
+              ) : (
+                <p className="mt-2 text-xs text-outline">Select a conversation to view visitor details.</p>
+              )}
+            </div>
           </div>
         </div>
 

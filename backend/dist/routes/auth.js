@@ -10,7 +10,9 @@ import { createCsrfToken, requireCsrfToken } from '../middleware/security.js';
 import { createSessionId, closeSession, listRecentLoginAttempts, listRecentSessions, logLoginAttempt, openSession, revokeSession, } from '../services/securityStore.js';
 import { authMiddleware, requireRoles } from '../middleware/auth.js';
 const router = Router();
-const useSecureCookies = process.env.COOKIE_SECURE === 'true';
+const useSecureCookies = process.env.COOKIE_SECURE
+    ? process.env.COOKIE_SECURE === 'true'
+    : process.env.NODE_ENV === 'production';
 const ALLOWED_USER_ROLES = ['ADMIN', 'SALES', 'VIEWER'];
 router.post('/login', async (req, res) => {
     const email = sanitizeEmail(req.body?.email);
@@ -82,7 +84,8 @@ router.post('/login', async (req, res) => {
         res.status(401).json({ message: 'Invalid admin credentials' });
     }
     catch (error) {
-        res.status(500).json({ message: 'Authentication error', error });
+        console.error('Authentication error:', error);
+        res.status(500).json({ message: 'Authentication error' });
     }
 });
 router.post('/logout', requireCsrfToken, (req, res) => {

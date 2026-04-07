@@ -1,9 +1,14 @@
 import { Router } from 'express';
 import { eq } from 'drizzle-orm';
 import { db } from '../db/index.js';
-import { leads, properties } from '../db/schema.js';
+import { contacts, leads, properties } from '../db/schema.js';
 import { sanitizeCrmPayload, sanitizeEmail, sanitizePlainText } from '../utils/sanitize.js';
-import { chatbotAskLimiter, chatbotPollLimiter } from '../middleware/security.js';
+import {
+  chatbotAskLimiter,
+  chatbotHandoffWriteLimiter,
+  chatbotPollLimiter,
+  publicSubmissionGuard,
+} from '../middleware/security.js';
 import {
   createMessage,
   createPublicHandoffConversation,
@@ -92,13 +97,15 @@ function getReplyByIntent(intent: ChatIntent) {
   }
 }
 
-router.post('/ask', chatbotAskLimiter, async (req, res) => {
+router.post('/ask', publicSubmissionGuard, chatbotAskLimiter, async (req, res) => {
   try {
     const rawMessage = sanitizePlainText(req.body?.message) || '';
     const customerName = sanitizePlainText(req.body?.customerName);
     const phone = sanitizePlainText(req.body?.phone);
     const email = sanitizeEmail(req.body?.email);
     const createLead = Boolean(req.body?.createLead);
+    const requestedHandoffConversationId = sanitizePlainText(req.body?.handoffConversationId) || '';
+    const requestedHandoffVisitorToken = sanitizePlainText(req.body?.handoffVisitorToken) || '';
 
     if (!rawMessage && !createLead) {
       return res.status(400).json({ message: 'Message is required' });
@@ -137,11 +144,12 @@ router.post('/ask', chatbotAskLimiter, async (req, res) => {
       }));
 
     let leadId: number | undefined;
+    let contactId: number | undefined;
     let handoffConversationId: string | undefined;
     let handoffVisitorToken: string | undefined;
     let handoffStatus: 'BOT' | 'AGENT' = 'BOT';
     if (createLead && customerName && phone) {
-      const payload = sanitizeCrmPayload({
+      const basePayload = sanitizeCrmPayload({
         customerName,
         phone,
         email,
@@ -149,38 +157,96 @@ router.post('/ask', chatbotAskLimiter, async (req, res) => {
         preferredLocation: wantedCity,
         propertyType: wantedType,
         budgetMax,
-        source: 'AI_CHATBOT',
-        notes: 'Lead created via website AI chatbot handoff',
+        notes: 'Request created via website chatbot handoff',
       });
 
-      const [lead] = await db.insert(leads).values(payload as any).returning();
+      const leadPayload = {
+        ...basePayload,
+        source: 'AI_CHATBOT',
+      };
+      const [lead] = await db.insert(leads).values(leadPayload as any).returning();
       leadId = lead?.id;
+
+      const contactPayload = {
+        ...basePayload,
+        source: 'AI_CHATBOT_AGENT',
+      };
+      const [contact] = await db.insert(contacts).values(contactPayload as any).returning();
+      contactId = contact?.id;
     }
 
     const reply = getReplyByIntent(intent);
     const shouldHandoff = intent === 'CONTACT_AGENT' || createLead;
     if (shouldHandoff) {
-      const handoffPropertyId = scored[0]?.id || activeProperties[0]?.id;
-      if (handoffPropertyId) {
-        const handoff = await createPublicHandoffConversation({
-          propertyId: handoffPropertyId,
-          clientName: customerName || undefined,
-          clientEmail: email || undefined,
-          clientPhone: phone || undefined,
-          subject: 'Website chatbot support takeover',
-          initialUserMessage: rawMessage || 'Visitor requested support takeover',
-          botReply: reply,
-        });
-        const createdConversationId = String(handoff.conversation.id);
-        handoffConversationId = createdConversationId;
-        handoffVisitorToken = handoff.publicToken;
+      if (requestedHandoffConversationId && requestedHandoffVisitorToken) {
+        const existingConversation = await getPublicConversationByToken(
+          requestedHandoffConversationId,
+          requestedHandoffVisitorToken,
+        );
+        if (existingConversation) {
+          handoffConversationId = requestedHandoffConversationId;
+          handoffVisitorToken = requestedHandoffVisitorToken;
+          handoffStatus =
+            String(existingConversation.handoff_status || 'BOT').toUpperCase() === 'AGENT' ? 'AGENT' : 'BOT';
+        }
+      }
 
-        const participants = await listParticipants(createdConversationId);
+      if (!handoffConversationId) {
+        const handoffPropertyId = scored[0]?.id || activeProperties[0]?.id;
+        if (handoffPropertyId) {
+          const handoff = await createPublicHandoffConversation({
+            propertyId: handoffPropertyId,
+            clientName: customerName || undefined,
+            clientEmail: email || undefined,
+            clientPhone: phone || undefined,
+            subject: 'Website chatbot support takeover',
+            initialUserMessage: rawMessage || 'Visitor requested support takeover',
+            botReply: reply,
+          });
+          const createdConversationId = String(handoff.conversation.id);
+          handoffConversationId = createdConversationId;
+          handoffVisitorToken = handoff.publicToken;
+        }
+      }
+
+      if (handoffConversationId) {
+        if (createLead && customerName && phone) {
+          const summaryLines = [
+            'Agent callback request submitted from website chatbot:',
+            `Name: ${customerName}`,
+            `Phone: ${phone}`,
+            `Email: ${email || 'Not provided'}`,
+            `Requirement: ${rawMessage || 'Requested callback from AI assistant'}`,
+            `CRM Lead ID: ${leadId || 'N/A'}`,
+            `CRM Contact ID: ${contactId || 'N/A'}`,
+          ];
+          await createMessage({
+            conversationId: handoffConversationId,
+            senderEmail: 'website-bot@system.nearbyacres',
+            senderRole: 'BOT',
+            messageType: 'TEXT',
+            messageText: summaryLines.join('\n'),
+          });
+
+          const messageRecipients = await listParticipants(handoffConversationId);
+          const messageTargetEmails = messageRecipients
+            .map((row: any) => String(row.user_email || '').toLowerCase())
+            .filter((value: string) => Boolean(value));
+          emitRealtimeEvent(
+            'message.created',
+            { conversationId: handoffConversationId },
+            messageTargetEmails,
+          );
+        }
+
+        const participants = await listParticipants(handoffConversationId);
         const targetEmails = participants
           .map((row: any) => String(row.user_email || '').toLowerCase())
           .filter((email: string) => Boolean(email));
 
-        emitRealtimeEvent('conversation.created', { conversation: handoff.conversation }, targetEmails);
+        if (!requestedHandoffConversationId || !requestedHandoffVisitorToken) {
+          emitRealtimeEvent('conversation.created', { conversationId: handoffConversationId }, targetEmails);
+        }
       }
     }
 
@@ -201,13 +267,15 @@ router.post('/ask', chatbotAskLimiter, async (req, res) => {
         requiresAgentHandoff: intent === 'CONTACT_AGENT' || createLead,
         handoffCreated: Boolean(handoffConversationId),
         leadId,
+        contactId,
         handoffConversationId,
         handoffVisitorToken,
         handoffStatus,
       },
     });
   } catch (error: any) {
-    return res.status(500).json({ message: 'Failed to process chatbot request', error: error?.message });
+    console.error('Failed to process chatbot request:', error);
+    return res.status(500).json({ message: 'Failed to process chatbot request' });
   }
 });
 
@@ -236,11 +304,12 @@ router.get('/handoff/:conversationId/messages', chatbotPollLimiter, async (req, 
       },
     });
   } catch (error: any) {
-    return res.status(500).json({ message: 'Failed to load handoff messages', error: error?.message });
+    console.error('Failed to load handoff messages:', error);
+    return res.status(500).json({ message: 'Failed to load handoff messages' });
   }
 });
 
-router.post('/handoff/:conversationId/messages', chatbotAskLimiter, async (req, res) => {
+router.post('/handoff/:conversationId/messages', chatbotHandoffWriteLimiter, async (req, res) => {
   try {
     const conversationId = sanitizePlainText(req.params?.conversationId) || '';
     const visitorToken = sanitizePlainText(req.body?.visitorToken) || '';
@@ -277,7 +346,8 @@ router.post('/handoff/:conversationId/messages', chatbotAskLimiter, async (req, 
       },
     });
   } catch (error: any) {
-    return res.status(500).json({ message: 'Failed to send handoff message', error: error?.message });
+    console.error('Failed to send handoff message:', error);
+    return res.status(500).json({ message: 'Failed to send handoff message' });
   }
 });
 

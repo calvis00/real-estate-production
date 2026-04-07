@@ -3,33 +3,32 @@ import { db } from '../db/index.js';
 import { leads } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
 import { authMiddleware, canEditField, requireRoles } from '../middleware/auth.js';
-import { requireCsrfToken } from '../middleware/security.js';
+import { publicSubmissionGuard, requireCsrfToken } from '../middleware/security.js';
 import { validateBody } from '../middleware/validate.js';
 import { CreateLeadSchema, UpdateLeadSchema } from '../schemas/crm.js';
 import { sanitizeCrmPayload } from '../utils/sanitize.js';
 const router = Router();
 // POST /api/leads
-router.post('/', validateBody(CreateLeadSchema), async (req, res) => {
+router.post('/', publicSubmissionGuard, validateBody(CreateLeadSchema), async (req, res) => {
     try {
         const sanitizedBody = sanitizeCrmPayload(req.body ?? {});
         const [newLead] = await db.insert(leads).values(sanitizedBody).returning();
-        console.log('New lead received:', newLead);
         res.status(201).json({ message: 'Lead submitted successfully', data: newLead });
     }
     catch (error) {
-        res.status(500).json({ message: 'Failed to submit lead', error });
+        console.error('Failed to submit lead:', error);
+        res.status(500).json({ message: 'Failed to submit lead' });
     }
 });
 // GET /api/leads (Admin only)
 router.get('/', authMiddleware, requireRoles(['ADMIN', 'SALES', 'VIEWER']), async (req, res) => {
-    console.log('GET /api/leads - Auth Passed');
     try {
         const allLeads = await db.select().from(leads);
-        console.log(`Returning ${allLeads.length} leads`);
         res.json({ data: allLeads });
     }
     catch (error) {
-        res.status(500).json({ message: 'Failed to fetch leads', error });
+        console.error('Failed to fetch leads:', error);
+        res.status(500).json({ message: 'Failed to fetch leads' });
     }
 });
 // Update lead status
@@ -73,7 +72,7 @@ router.put('/:id', authMiddleware, requireRoles(['ADMIN', 'SALES']), requireCsrf
     }
     catch (error) {
         console.error('Update failed:', error);
-        res.status(500).json({ message: 'Failed to update lead', error });
+        res.status(500).json({ message: 'Failed to update lead' });
     }
 });
 router.delete('/:id', authMiddleware, requireRoles(['ADMIN', 'SALES']), requireCsrfToken, async (req, res) => {
@@ -87,7 +86,8 @@ router.delete('/:id', authMiddleware, requireRoles(['ADMIN', 'SALES']), requireC
         res.json({ message: 'Lead deleted successfully' });
     }
     catch (error) {
-        res.status(500).json({ message: 'Failed to delete lead', error });
+        console.error('Failed to delete lead:', error);
+        res.status(500).json({ message: 'Failed to delete lead' });
     }
 });
 export default router;

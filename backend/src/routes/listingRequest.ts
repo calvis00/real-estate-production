@@ -3,7 +3,7 @@ import { db } from '../db/index.js';
 import { listingRequests, leads } from '../db/schema.js';
 import { eq } from 'drizzle-orm';
 import { authMiddleware, canEditField, requireRoles } from '../middleware/auth.js';
-import { requireCsrfToken } from '../middleware/security.js';
+import { publicSubmissionGuard, requireCsrfToken } from '../middleware/security.js';
 import { validateBody } from '../middleware/validate.js';
 import { CreateListingRequestSchema, UpdateListingRequestSchema } from '../schemas/crm.js';
 import { sanitizeCrmPayload } from '../utils/sanitize.js';
@@ -11,14 +11,14 @@ import { sanitizeCrmPayload } from '../utils/sanitize.js';
 const router = Router();
 
 // POST /api/listing-requests
-router.post('/', validateBody(CreateListingRequestSchema), async (req, res) => {
+router.post('/', publicSubmissionGuard, validateBody(CreateListingRequestSchema), async (req, res) => {
   try {
     const sanitizedBody = sanitizeCrmPayload(req.body ?? {});
     const [newRequest] = await db.insert(listingRequests).values(sanitizedBody as any).returning();
-    console.log('New listing request received:', newRequest);
     res.status(201).json({ message: 'Request submitted successfully', data: newRequest });
   } catch (error) {
-    res.status(500).json({ message: 'Failed to submit request', error });
+    console.error('Failed to submit listing request:', error);
+    res.status(500).json({ message: 'Failed to submit request' });
   }
 });
 
@@ -28,7 +28,8 @@ router.get('/', authMiddleware, requireRoles(['ADMIN', 'SALES', 'VIEWER']), asyn
     const data = await db.select().from(listingRequests);
     res.json({ data });
   } catch (error) {
-    res.status(500).json({ message: 'Failed to fetch listing requests', error });
+    console.error('Failed to fetch listing requests:', error);
+    res.status(500).json({ message: 'Failed to fetch listing requests' });
   }
 });
 
@@ -49,7 +50,8 @@ router.put('/:id', authMiddleware, requireRoles(['ADMIN', 'SALES']), requireCsrf
     await db.update(listingRequests).set(updateData).where(eq(listingRequests.id, Number(id)));
     res.json({ message: 'Request updated successfully' });
   } catch (error) {
-    res.status(500).json({ message: 'Failed to update request', error });
+    console.error('Failed to update listing request:', error);
+    res.status(500).json({ message: 'Failed to update request' });
   }
 });
 
@@ -63,7 +65,8 @@ router.delete('/:id', authMiddleware, requireRoles(['ADMIN', 'SALES']), requireC
     await db.delete(listingRequests).where(eq(listingRequests.id, Number(id)));
     res.json({ message: 'Request deleted successfully' });
   } catch (error) {
-    res.status(500).json({ message: 'Failed to delete request', error });
+    console.error('Failed to delete listing request:', error);
+    res.status(500).json({ message: 'Failed to delete request' });
   }
 });
 
@@ -108,7 +111,7 @@ router.post('/:id/convert', authMiddleware, requireRoles(['ADMIN', 'SALES']), re
     res.json({ message: 'Listing request converted to lead successfully' });
   } catch (error) {
     console.error('Conversion failed:', error);
-    res.status(500).json({ message: 'Failed to convert request', error });
+    res.status(500).json({ message: 'Failed to convert request' });
   }
 });
 

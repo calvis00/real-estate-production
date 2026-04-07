@@ -10,6 +10,7 @@ export const translations = {
     // Navbar
     nav_home: 'Home',
     nav_properties: 'Properties',
+    nav_categories: 'Categories',
     nav_cities: 'Cities',
     nav_contact: 'Contact',
 
@@ -31,7 +32,8 @@ export const translations = {
     field_type: 'Property Type',
     field_type_placeholder: 'Any Type',
     field_type_apartment: 'Apartment',
-    field_type_villa: 'Villa / House',
+    field_type_villa: 'Villa',
+    field_type_individual_house: 'Individual House',
     field_type_farmhouse: 'Farmhouse',
     field_type_plot: 'Plot',
     field_name: 'Full Name',
@@ -126,6 +128,7 @@ export const translations = {
     // Navbar
     nav_home: 'முகப்பு',
     nav_properties: 'சொத்துகள்',
+    nav_categories: 'வகைகள்',
     nav_cities: 'நகரங்கள்',
     nav_contact: 'தொடர்பு',
 
@@ -147,7 +150,8 @@ export const translations = {
     field_type: 'சொத்து வகை',
     field_type_placeholder: 'எந்த வகையும்',
     field_type_apartment: 'அடுக்குமாடி',
-    field_type_villa: 'வில்லா / வீடு',
+    field_type_villa: 'வில்லா',
+    field_type_individual_house: 'தனி வீடு',
     field_type_farmhouse: 'பண்ணை வீடு',
     field_type_plot: 'மனை',
     field_name: 'பெயர்',
