@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { Suspense, useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
 import PropertyCard from '@/components/PropertyCard';
 import { apiUrl } from '@/utils/api';
@@ -21,7 +21,7 @@ interface Property {
   areaSqft?: number;
 }
 
-export default function PropertiesPage() {
+function PropertiesContent() {
   const searchParams = useSearchParams();
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
@@ -124,5 +124,21 @@ export default function PropertiesPage() {
         </div>
       </section>
     </div>
+  );
+}
+
+export default function PropertiesPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-background text-on-surface flex items-center justify-center">
+          <p className="text-outline font-bold uppercase tracking-widest text-[10px]">
+            Loading properties...
+          </p>
+        </div>
+      }
+    >
+      <PropertiesContent />
+    </Suspense>
   );
 }
