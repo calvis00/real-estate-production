@@ -8,14 +8,6 @@ import Link from 'next/link';
 import { useLang } from '@/i18n/LangContext';
 import { apiUrl } from '@/utils/api';
 
-const categoryItems = [
-  { icon: 'castle',         id: 'VILLA',       labelKey: 'cat_villa'      },
-  { icon: 'apartment',      id: 'APARTMENT',   labelKey: 'cat_apartment'  },
-  { icon: 'landscape',      id: 'PLOT',        labelKey: 'cat_plot'       },
-  { icon: 'corporate_fare', id: 'COMMERCIAL',  labelKey: 'cat_commercial' },
-  { icon: 'park',           id: 'FARMHOUSE',   labelKey: 'cat_farmhouse'  },
-] as const;
-
 const tamilDistricts = [
   'Ariyalur','Chengalpattu','Chennai','Coimbatore','Cuddalore','Dharmapuri',
   'Dindigul','Erode','Kallakurichi','Kanchipuram','Kanyakumari','Karur',
@@ -33,7 +25,6 @@ export default function LandingPage() {
   const [activeSearchTab, setActiveSearchTab] = useState<'buy'|'rent'|'shoot'>('buy');
   const [minBudget, setMinBudget] = useState(10);
   const [maxBudget, setMaxBudget] = useState(500);
-  const [activeCategory, setActiveCategory] = useState('all');
   const [properties, setProperties] = useState<any[]>([]);
   const [filteredProperties, setFilteredProperties] = useState<any[]>([]);
 
@@ -46,15 +37,8 @@ export default function LandingPage() {
 
   useEffect(() => {
     const active = properties.filter(p => !p.status || p.status === 'ACTIVE');
-    setFilteredProperties(
-      activeCategory === 'all'
-        ? active
-        : active.filter(p =>
-            p.category?.toUpperCase() === activeCategory ||
-            p.type?.toUpperCase() === activeCategory
-          )
-    );
-  }, [activeCategory, properties]);
+    setFilteredProperties(active);
+  }, [properties]);
 
   const ta = (cls: string) => isTamil ? `font-['Noto_Serif_Tamil'] ${cls}` : cls;
 
@@ -127,6 +111,7 @@ export default function LandingPage() {
                         <option value="">{t('field_type_placeholder')}</option>
                         <option value="Apartment">{t('field_type_apartment')}</option>
                         <option value="Villa">{t('field_type_villa')}</option>
+                        <option value="House">{t('field_type_individual_house')}</option>
                         <option value="Farmhouse">{t('field_type_farmhouse')}</option>
                         <option value="Plot">{t('field_type_plot')}</option>
                       </select>
@@ -225,47 +210,7 @@ export default function LandingPage() {
       </div>
 
       {/* ── Categories ── */}
-      <div className="bg-gradient-to-b from-background to-surface py-14 sm:py-16 md:py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <section className="mb-20">
-            <div className="flex flex-col md:flex-row md:items-end justify-between mb-10">
-              <div>
-                <h2 className={ta('text-3xl font-extrabold font-headline text-primary mb-2')}>{t('cat_heading')}</h2>
-                <p className={ta('text-outline text-sm')}>{t('cat_sub')}</p>
-              </div>
-              <a className="text-secondary font-bold flex items-center gap-1 hover:underline mt-4 md:mt-0 text-sm" href="#">
-                {t('cat_all_link')} <span className="material-symbols-outlined text-sm">arrow_forward</span>
-              </a>
-            </div>
-            <div className="grid grid-cols-2 gap-4 sm:gap-6 md:grid-cols-3 lg:grid-cols-5">
-              {categoryItems.map(item => {
-                const count = properties.filter(p => p.category === item.id).length;
-                return (
-                  <div
-                    key={item.id}
-                    onClick={() => setActiveCategory(activeCategory === item.id ? 'all' : item.id)}
-                    className={`group flex cursor-pointer flex-col items-center rounded-[1.8rem] border bg-surface p-6 text-center transition-all sm:rounded-[2.2rem] sm:p-8 lg:rounded-[2.5rem] lg:p-10 ${
-                      activeCategory === item.id
-                        ? 'border-secondary ring-2 ring-secondary/20'
-                        : 'border-surface-container hover:border-secondary'
-                    }`}
-                  >
-                    <div className={`w-16 h-16 rounded-full flex items-center justify-center mb-4 transition-all ${
-                      activeCategory === item.id ? 'bg-primary text-white' : 'bg-primary/5 text-primary group-hover:bg-primary group-hover:text-white'
-                    }`}>
-                      <span className="material-symbols-outlined">{item.icon}</span>
-                    </div>
-                    <h3 className={ta('font-bold text-primary text-sm')}>{t(item.labelKey)}</h3>
-                    <p className="text-[10px] text-outline mt-2 font-bold uppercase tracking-widest">
-                      {count > 0 ? `${count} ${count === 1 ? t('cat_unit_one') : t('cat_unit_many')}` : t('cat_explore')}
-                    </p>
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-        </div>
-      </div>
+      
 
       {/* ── Listings ── */}
       <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 sm:py-16 lg:px-8 lg:py-20">
