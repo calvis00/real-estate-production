@@ -5,6 +5,7 @@ import PropertyCard from '@/components/PropertyCard';
 import LeadForm from '@/components/LeadForm';
 import BudgetSlider from '@/components/BudgetSlider';
 import Link from 'next/link';
+import { Instagram, Linkedin } from 'lucide-react';
 import { useLang } from '@/i18n/LangContext';
 import { apiUrl } from '@/utils/api';
 
@@ -277,9 +278,36 @@ export default function LandingPage() {
             <div>
               <a className="text-3xl font-extrabold font-headline tracking-tighter mb-3 block" href="#">Nearby<span className="text-secondary">Acres</span></a>
               <p className={ta('text-white/70 text-sm leading-relaxed mb-6')}>{t('footer_tagline')}</p>
-              <div className="flex gap-4">
-                <a className="w-10 h-10 rounded-full border border-slate-500/30 flex items-center justify-center hover:bg-secondary hover:text-primary transition-all" href="#">
-                  <span className="material-symbols-outlined text-sm">share</span>
+              <div className="flex gap-3">
+                <a
+                  className="w-10 h-10 rounded-full border border-slate-500/30 flex items-center justify-center hover:bg-secondary hover:text-primary transition-all"
+                  href="https://instagram.com/nearbyacres"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Instagram"
+                  title="Instagram"
+                >
+                  <Instagram size={16} />
+                </a>
+                <a
+                  className="w-10 h-10 rounded-full border border-slate-500/30 flex items-center justify-center hover:bg-secondary hover:text-primary transition-all"
+                  href="https://linkedin.com/company/nearbyacres"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="LinkedIn"
+                  title="LinkedIn"
+                >
+                  <Linkedin size={16} />
+                </a>
+                <a
+                  className="w-10 h-10 rounded-full border border-slate-500/30 flex items-center justify-center hover:bg-secondary hover:text-primary transition-all"
+                  href="https://x.com/nearbyacres"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="X"
+                  title="X"
+                >
+                  <span className="text-sm font-extrabold leading-none">X</span>
                 </a>
               </div>
             </div>
