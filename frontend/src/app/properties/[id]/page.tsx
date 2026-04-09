@@ -34,6 +34,13 @@ export default function PropertyDetailPage() {
   const [chatLoading, setChatLoading] = useState(false);
   const [chatError, setChatError] = useState('');
 
+  useEffect(() => {
+    // Always open a property detail from the top for predictable UX.
+    window.scrollTo({ top: 0, left: 0, behavior: 'auto' });
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+  }, [id]);
+
   // Sync scroll lock and keyboard events
   useEffect(() => {
     if (isLightboxOpen) {

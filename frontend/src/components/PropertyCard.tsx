@@ -48,7 +48,7 @@ export default function PropertyCard({
   const displayPrice = formatPrice(price);
 
   return (
-    <Link href={`/properties/${id}`} className="block h-full group">
+    <Link href={`/properties/${id}`} scroll className="block h-full group">
       <div className="bg-surface rounded-2xl overflow-hidden border border-surface-container hover:shadow-2xl transition-all h-full flex flex-col golden-edge group-hover:-translate-y-1 duration-300">
         <div className="relative h-64 overflow-hidden">
           <img 
