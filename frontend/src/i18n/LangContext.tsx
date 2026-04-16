@@ -19,7 +19,7 @@ export const translations = {
     hero_h1_1: 'Find Your',
     hero_h1_accent: 'Dream Home',
     hero_h1_2: 'Here',
-    hero_sub: 'Houses · Plots · Commercial — Buy, Rent or Invest',
+    hero_sub: 'Houses · Plots · Commercial Buy, Rent or Invest',
 
     // Search Tabs
     tab_buy: 'Buy',
@@ -137,7 +137,7 @@ export const translations = {
     hero_h1_1: 'உங்கள்',
     hero_h1_accent: 'கனவு வீட்டை',
     hero_h1_2: 'இங்கே காணுங்கள்',
-    hero_sub: 'வீடு · மனை · வணிக வளாகம் — வாங்க, வாடகைக்கு, முதலீட்டிற்கு',
+    hero_sub: 'வீடு · மனை · வணிக வளாகம் வாங்க, வாடகைக்கு, முதலீட்டிற்கு',
 
     // Search Tabs
     tab_buy: 'வாங்க',
